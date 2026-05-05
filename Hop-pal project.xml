@@ -5,6 +5,7 @@
 const int GRID_W = 18;
 const int GRID_H = 13;
 const int NUM_LANES = 5;
+const int MAX_VEHICLES = 4;
 
 // Typedef
 typedef int[1, 3] Lives;
@@ -59,128 +60,102 @@ x = 0</label>
 		<init ref="id4"/>
 	</template>
 	<template>
-		<name>Vehicle</name>
-		<parameter>int size, int speed, int[0, GRID_W-1] vehicle_x, int[0, GRID_H-1] lane</parameter>
+		<name>VehicleLane</name>
+		<parameter>int size, int speed, int[-1, GRID_W]&amp; vehicle_x[MAX_VEHICLES], int n, int[0, GRID_H-1] lane</parameter>
 		<declaration>// Template Vehicle
 clock x;                    // local clock of Vehicle     
 
-//int lane = init_y;          // Initialization of the variable lane based on the input
-                              // Note that this measurement is fixed during the execution of the TA
-                              // ensuring that a vehicle stays in the same row in which is initialized 
-//int vehicle_x = init_x;     // Initialization of the coordinate x based on the input</declaration>
-		<location id="id5" x="93" y="-119">
-			<name x="110" y="-127">respawn_left</name>
+//int[0, GRID_H-1] lane = init_y;           // Initialization of the variable lane based on the input
+                                            // Note that this measurement is fixed during the execution of the TA
+                                            // ensuring that a vehicle stays in the same row in which is initialized 
+//int[-1, GRID_W] &amp;vehicle_x = init_x;      // Initialization of the coordinate x based on the input
+
+void move_left(int[-1, GRID_W]&amp; v[MAX_VEHICLES], int n) {
+    int i;
+    for (i = 0; i &lt; n; i++) {
+        if (v[i]==-1){
+            v[i] = GRID_W;
+        } else {
+            v[i] = v[i] - 1;
+        }
+    }
+}
+
+void move_right(int[-1, GRID_W]&amp; v[MAX_VEHICLES], int n) {
+    int i;
+    for (i = 0; i &lt; n; i++) {
+        if (v[i]==GRID_W){
+            v[i] = 0;
+        } else {
+            v[i] = v[i] + 1;
+        }
+    }
+}</declaration>
+		<location id="id5" x="-85" y="-246">
+			<name x="-102" y="-229">wait</name>
+			<label kind="invariant" x="-119" y="-212">x&lt;=speed</label>
+		</location>
+		<location id="id6" x="246" y="-246">
+			<name x="272" y="-254">move_to_right</name>
 			<committed/>
 		</location>
-		<location id="id6" x="-119" y="-119">
-			<name x="-246" y="-127">respawn_right</name>
+		<location id="id7" x="-382" y="-246">
+			<name x="-509" y="-255">move_to_left</name>
 			<committed/>
 		</location>
-		<location id="id7" x="-17" y="17">
-			<name x="-34" y="34">wait</name>
-			<label kind="invariant" x="-51" y="51">x&lt;=speed</label>
-		</location>
-		<location id="id8" x="314" y="17">
-			<name x="340" y="9">move_to_right</name>
-			<committed/>
-		</location>
-		<location id="id9" x="-314" y="17">
-			<name x="-441" y="8">move_to_left</name>
-			<committed/>
-		</location>
-		<location id="id10" x="-17" y="-289">
-			<name x="-68" y="-340">out_of_screen</name>
-			<label kind="invariant" x="-59" y="-323">x&lt;=2*speed</label>
-		</location>
-		<init ref="id7"/>
-		<transition id="id11">
+		<init ref="id5"/>
+		<transition id="id8">
 			<source ref="id5"/>
 			<target ref="id7"/>
+			<label kind="guard" x="-357" y="-212">lane%2!=0 &amp;&amp; x&gt;=speed</label>
+			<label kind="assignment" x="-357" y="-187">x=0</label>
+			<nail x="-238" y="-221"/>
 		</transition>
-		<transition id="id12">
-			<source ref="id6"/>
-			<target ref="id7"/>
-		</transition>
-		<transition id="id13">
-			<source ref="id10"/>
+		<transition id="id9">
+			<source ref="id7"/>
 			<target ref="id5"/>
-			<label kind="guard" x="51" y="-246">x&gt;=2*speed &amp;&amp;
-lane%2==0</label>
-			<label kind="assignment" x="51" y="-204">vehicle_x=0</label>
+			<label kind="assignment" x="-357" y="-297">move_left(vehicle_x, n)</label>
+			<nail x="-238" y="-271"/>
 		</transition>
-		<transition id="id14">
-			<source ref="id10"/>
+		<transition id="id10">
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="8" y="-305">move_right(vehicle_x, n)</label>
+			<nail x="85" y="-280"/>
+		</transition>
+		<transition id="id11">
+			<source ref="id5"/>
 			<target ref="id6"/>
-			<label kind="guard" x="-178" y="-246">x&gt;=2*speed &amp;&amp;
-lane%2!=0</label>
-			<label kind="assignment" x="-178" y="-204">vehicle_x=17</label>
-		</transition>
-		<transition id="id15">
-			<source ref="id8"/>
-			<target ref="id10"/>
-			<label kind="guard" x="323" y="-161">vehicle_x&gt;=GRID_H-1</label>
-			<nail x="314" y="-289"/>
-		</transition>
-		<transition id="id16">
-			<source ref="id7"/>
-			<target ref="id9"/>
-			<label kind="guard" x="-289" y="51">lane%2!=0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="-289" y="76">x=0</label>
-			<nail x="-170" y="42"/>
-		</transition>
-		<transition id="id17">
-			<source ref="id9"/>
-			<target ref="id7"/>
-			<label kind="guard" x="-289" y="-51">vehicle_x&gt;0</label>
-			<label kind="assignment" x="-289" y="-34">vehicle_x = vehicle_x - 1</label>
-			<nail x="-170" y="-8"/>
-		</transition>
-		<transition id="id18">
-			<source ref="id9"/>
-			<target ref="id10"/>
-			<label kind="guard" x="-425" y="-161">vehicle_x&lt;=0</label>
-			<nail x="-314" y="-289"/>
-		</transition>
-		<transition id="id19">
-			<source ref="id8"/>
-			<target ref="id7"/>
-			<label kind="guard" x="76" y="-59">vehicle_x&lt;GRID_W-1</label>
-			<label kind="assignment" x="76" y="-42">vehicle_x = vehicle_x + 1</label>
-			<nail x="153" y="-17"/>
-		</transition>
-		<transition id="id20">
-			<source ref="id7"/>
-			<target ref="id8"/>
-			<label kind="guard" x="59" y="51">lane%2==0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="59" y="76">x=0</label>
-			<nail x="161" y="42"/>
+			<label kind="guard" x="-9" y="-212">lane%2==0 &amp;&amp; x&gt;=speed</label>
+			<label kind="assignment" x="-9" y="-187">x=0</label>
+			<nail x="93" y="-221"/>
 		</transition>
 	</template>
-	<system>// Vehicle instantiations
-// OC - OrangeCar
-OC1 = Vehicle(1, 3, 4, 1);
-OC2 = Vehicle(1, 3, 14, 1);
+	<system>// Vehicle Lane instantiations where VehicleLane( int size, int speed, int[-1, GRID_W]&amp; init_x[MAX_VEHICLES], int n, int[0, GRID_H-1] init_y )
+// Lane OC - OrangeCar
+int [-1, GRID_W] oc_x[MAX_VEHICLES] = {4, 14, 0, 0};
+OC = VehicleLane(1, 2, oc_x, 2, 1);
 
-// B - Bulldozer
-B1 = Vehicle(1, 10, 2, 2);
-B2 = Vehicle(1, 10, 11, 2);
+// Lane B - Bulldozer
+int [-1, GRID_W] b_x[MAX_VEHICLES] = {2, 11, 0, 0};
+B = VehicleLane(1, 10, b_x, 2, 2);
 
-// GC - GreenCar
-GC1 = Vehicle(1, 5, 4, 3);
-GC2 = Vehicle(1, 5, 8, 3);
-GC3 = Vehicle(1, 5, 12, 3);
-GC4 = Vehicle(1, 5, 16, 3);
+// Lane GC - GreenCar
+int [-1, GRID_W] gc_x[MAX_VEHICLES] = {4, 8, 12, 16};
+GC = VehicleLane(1, 5, gc_x, 4, 3);
 
-// PC - PurpleCar
-PC1 = Vehicle(1, 4, 2, 4);
-PC2 = Vehicle(1, 4, 10, 4);
+// Lane PC - PurpleCar
+int [-1, GRID_W] pc_x[MAX_VEHICLES] = {2, 10, 0, 0};
+PC = VehicleLane(1, 4, pc_x, 2, 4);
 
 // T - Truck
-T1 = Vehicle(2, 7, 4, 5);
-T2 = Vehicle(2, 7, 15, 5);
+// T1 = Vehicle(2, 7, 4, 5);
+// T2 = Vehicle(2, 7, 15, 5);
+int [-1, GRID_W] t_x[MAX_VEHICLES] = {4, 15, 0, 0};
+T = VehicleLane(2, 7, t_x, 2, 5);
 
 // List one or more processes to be composed into a system.
-system OC1, OC2, B1, B2, GC1, GC2, GC3, GC4, PC1, PC2, T1, T2;
+system OC, B, GC, PC, T;
 </system>
 	<queries>
 		<query>
