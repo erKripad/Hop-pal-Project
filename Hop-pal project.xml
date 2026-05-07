@@ -4,305 +4,297 @@
 	<declaration>// Map constants
 const int GRID_W = 18;
 const int GRID_H = 13;
-const int NUM_LANES = 5;
+
+const int LANE_W = 20;
+
+// Enum
+const int E = 0; // Empty
+const int W = 1; // Water
+const int V = 2; // Vehicle
+const int L = 3; // Log
+const int T = 4; // Turtle
+const int D = 5; // Diving turtle
+const int X = 6; // Wall
+const int H = 7; // Home bay
 
 // Typedef
-typedef int[1, 3] Lives;
 typedef int[0, GRID_W-1] PosX;
 typedef int[0, GRID_H-1] PosY;
+typedef int[0, LANE_W-1] LanePosX;
+typedef int[0, 5] Lives;
+typedef int[0,7] Cell;
+typedef int [-1,1] Direction;
 
-// Global variables
-PosX frog_x = 0;
-PosY frog_y = 9;
-Lives lives = 3;
+
+
+
+
+/// =====================================[ Game Level Structure ]=========================== \\\
+
+// contiene le posizioni iniziali degli elementi di ogni lane ....
+const Cell LANE_STRUCTURES[GRID_H][LANE_W] = {
+    {E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,X,X}, /// lane E  - safe start
+    {E,E,E,E,V,E,E,E,E,E,E,E,E,E,V,E,E,E,E,E}, // lane 1  - orange cars
+    {E,E,V,E,E,E,E,E,E,E,E,V,E,E,E,E,E,E,E,E}, // lane 2  - bulldozers
+    {E,E,E,V,E,E,E,E,V,E,E,E,E,V,E,E,E,V,E,E}, // lane 3  - green cars
+    {E,E,V,E,E,E,E,E,E,E,V,E,E,E,E,E,E,E,E,E}, // lane 4  - purple cars
+    {E,E,E,V,V,E,E,E,E,E,E,E,E,E,V,V,E,E,E,E}, // lane 5  - trucks
+    {E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,X,X}, /// lane 6  - safe median
+    {W,W,W,W,W,T,W,T,W,T,W,W,W,D,W,D,W,D,W,W}, // lane 7  - turtles (13,15,17 = diving)
+    {W,W,W,W,W,W,W,L,L,L,W,L,L,L,W,L,L,L,W,W}, // lane 8  - logs
+    {W,W,L,L,L,L,L,L,L,L,L,W,W,W,W,W,W,W,W,W}, // lane 9  - logs
+    {W,T,W,T,W,W,W,W,W,D,W,D,W,W,W,W,W,W,W,W}, // lane 10 - turtles (9,11 = diving)
+    {W,L,L,L,L,L,W,W,W,L,L,L,L,L,W,W,W,W,W,W}, // lane 11 - logs
+    {H,H,X,X,H,H,X,X,H,H,X,X,H,H,X,X,H,H,X,X}  /// lane 12 - home bays
+};
+
+// moving speed of the lanes
+const int lane_speed_array[GRID_H] = {0, 3, 10, 5, 4, 7, 0, 6, 2, 7, 2, 2, 0};
+
+// moving direction of the lane, +1 if from left to right, -1 from right lo left
+const Direction lane_direction_array[GRID_H] = {0, -1, 1, -1, 1, -1, 0, 1, 1, -1, 1, -1, 0};
+
+/// ======================================================================================== \\\
+
+
+
+
+
+
+
+/// ----------------------------------[ Global Variables ]---------------------------------- \\\
+PosX frog_x = 9;
+PosY frog_y = 0;
+Lives lives = 5;
+
+LanePosX lane_pos_array[GRID_H] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+bool diving_turtles_are_submerged = false;
+bool home_bay_occupied[5] = {false, false, false, false, false}
+
+
+/// ----------------------------------[ Global Functions ]---------------------------------- \\\
+void move_lane(PosY lane) {
+    lane_pos_array[lane] = (LANE_W + lane_pos_array[lane] + lane_direction_array[lane]) % LANE_W;
+}
+
+Cell get_cell(PosY lane, PosX x) {
+    return LANE_STRUCTURES[lane][(LANE_W + x - lane_pos_array[lane]) % LANE_W];
+}
+
+
+
+void respawn() {
+    frog_x = 0;
+    frog_y = 0;
+}
+
+
+
+bool is_home_bay_occupied() {
+    return home_bay_occupied[frog_x / 4];
+}
+
+
+bool can_enter_cell(PosY y, PosX x) {
+    Cell cell = get_cell(y, x);
+    return !(cell == X || (cell == H &amp;&amp; is_home_bay_occupied() );
+}
+
+
+
+
+bool is_safe_turtle_cell(Cell cell) {
+    return cell == T || (cell == D &amp;&amp; !diving_turtles_are_submerged);
+}
+
+bool is_frog_between_safe_turtles() {
+    if (frog_x == 0 || frog_x == GRID_W - 1) return false;
+    Cell left = get_cell(frog_y, frog_x - 1);
+    Cell right = get_cell(frog_y, frog_x + 1);
+    return left == right &amp;&amp; is_safe_turtle_cell(left);
+}
+
+bool is_frog_safe(Cell frog_cell) {
+    return frog_cell == E || frog_cell == L || is_safe_turtle_cell(frog_cell) || is_frog_between_safe_turtles();
+}
+
+
+
+void check_frog_after_frog_move() {
+    Cell frog_cell = get_cell(frog_y, frog_x);
+    if (frog_cell == H) {
+        reach_home_bay();
+    } else if ( !is_frog_safe(frog_cell) ) {
+        kill_frog();
+    }
+}
+
+
+void check_frog_after_lane_move(PosY lane) {
+    Cell frog_cell = get_cell(frog_y, frog_x);
+    if ( frog_y == lane &amp;&amp; !is_frog_safe(frog_cell) ) {
+        kill_frog();
+    }
+}
+
+
+void kill_frog() {
+    // todo: kill logic
+    respawn()
+}
+
+void reach_home_bay() {
+    home_bay_occupied[frog_x / 4] = true;
+    // todo: restart logic
+    respawn()
+}
+
+
+/// ---------------------------------------------------------------------------------------- \\\
+
+
+
+
+
+
 
 // Channels
 
 
-</declaration>
-	<template>
-		<name x="5" y="5">Frog</name>
-		<declaration>// Template Frog
-clock x;                // local clock of Frog     
 
 
-</declaration>
-		<location id="id0" x="0" y="42">
-			<name x="25" y="33">stopped</name>
-		</location>
-		<location id="id1" x="0" y="-144">
-			<name x="25" y="-153">move_up</name>
-			<label kind="invariant" x="-17" y="-178">x&lt;=1</label>
-		</location>
-		<init ref="id0"/>
-		<transition id="id2">
-			<source ref="id1"/>
-			<target ref="id0"/>
-			<label kind="guard" x="42" y="-68">x&gt;=1</label>
-			<nail x="25" y="-51"/>
-		</transition>
-		<transition id="id3">
-			<source ref="id0"/>
-			<target ref="id1"/>
-			<label kind="guard" x="-195" y="-93">lives&gt;0 &amp;&amp; 
-frog_y&lt;12</label>
-			<label kind="assignment" x="-195" y="-51">frog_y = frog_y + 1, 
-x = 0</label>
-			<nail x="-17" y="-8"/>
-			<nail x="-25" y="-51"/>
-		</transition>
-	</template>
-	<template>
-		<name>GameController</name>
-<<<<<<< Updated upstream
-		<location id="id4" x="-59" y="0">
-=======
-		<location id="id4" x="0" y="0">
->>>>>>> Stashed changes
-		</location>
-		<init ref="id4"/>
-	</template>
-	<template>
-		<name>Vehicle</name>
-		<parameter>int size, int speed, int[0, GRID_W-1] vehicle_x, int[0, GRID_H-1] lane</parameter>
-		<declaration>// Template Vehicle
-clock tick;                    // local clock of Vehicle     
 
-//int lane = init_y;          // Initialization of the variable lane based on the input
-                              // Note that this measurement is fixed during the execution of the TA
-                              // ensuring that a vehicle stays in the same row in which is initialized 
-//int vehicle_x = init_x;     // Initialization of the coordinate x based on the input</declaration>
-<<<<<<< Updated upstream
-		<location id="id5" x="93" y="-119">
-			<name x="110" y="-127">respawn_left</name>
-			<committed/>
-		</location>
-		<location id="id6" x="-119" y="-119">
-			<name x="-246" y="-127">respawn_right</name>
-			<committed/>
-		</location>
-		<location id="id7" x="-17" y="17">
-			<name x="-34" y="34">wait</name>
-			<label kind="invariant" x="-51" y="51">x&lt;=speed</label>
-		</location>
-		<location id="id8" x="314" y="17">
-			<name x="340" y="9">move_to_right</name>
-			<committed/>
-		</location>
-		<location id="id9" x="-314" y="17">
-			<name x="-441" y="8">move_to_left</name>
-			<committed/>
-		</location>
-		<location id="id10" x="-17" y="-289">
-			<name x="-68" y="-340">out_of_screen</name>
-			<label kind="invariant" x="-59" y="-323">x&lt;=2*speed</label>
-=======
-		<location id="id5" x="254" y="0">
-			<name x="271" y="-8">respawn_left</name>
-			<committed/>
-		</location>
-		<location id="id6" x="42" y="0">
-			<name x="-85" y="-8">respawn_right</name>
-			<committed/>
-		</location>
-		<location id="id7" x="144" y="136">
-			<name x="127" y="153">wait</name>
-			<label kind="invariant" x="110" y="170">tick&lt;=speed</label>
-		</location>
-		<location id="id8" x="475" y="136">
-			<name x="501" y="128">move_to_right</name>
-			<committed/>
-		</location>
-		<location id="id9" x="-153" y="136">
-			<name x="-280" y="127">move_to_left</name>
-			<committed/>
-		</location>
-		<location id="id10" x="144" y="-170">
-			<name x="93" y="-221">out_of_screen</name>
-			<label kind="invariant" x="102" y="-204">tick&lt;=2*speed</label>
->>>>>>> Stashed changes
-		</location>
-		<init ref="id7"/>
-		<transition id="id11">
-			<source ref="id5"/>
-			<target ref="id7"/>
-		</transition>
-		<transition id="id12">
-			<source ref="id6"/>
-			<target ref="id7"/>
-		</transition>
-		<transition id="id13">
-			<source ref="id10"/>
-			<target ref="id5"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="51" y="-246">x&gt;=2*speed &amp;&amp;
-lane%2==0</label>
-			<label kind="assignment" x="51" y="-204">vehicle_x=0</label>
-=======
-			<label kind="guard" x="187" y="-119">lane%2==0 &amp;&amp; tick&gt;=2*speed</label>
-			<label kind="assignment" x="195" y="-102">vehicle_x=0</label>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id14">
-			<source ref="id10"/>
-			<target ref="id6"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="-178" y="-246">x&gt;=2*speed &amp;&amp;
-lane%2!=0</label>
-			<label kind="assignment" x="-178" y="-204">vehicle_x=17</label>
-=======
-			<label kind="guard" x="-119" y="-119">lane%2!=0 &amp;&amp; tick&gt;=2*speed</label>
-			<label kind="assignment" x="-42" y="-102">vehicle_x=GRID_W</label>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id15">
-			<source ref="id8"/>
-			<target ref="id10"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="323" y="-161">vehicle_x&gt;=GRID_H-1</label>
-			<nail x="314" y="-289"/>
-=======
-			<label kind="guard" x="484" y="-42">vehicle_x&gt;=GRID_W-1</label>
-			<nail x="475" y="-170"/>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id16">
-			<source ref="id7"/>
-			<target ref="id9"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="-289" y="51">lane%2!=0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="-289" y="76">x=0</label>
-			<nail x="-170" y="42"/>
-=======
-			<label kind="guard" x="-136" y="161">lane%2!=0 &amp;&amp; tick&gt;=speed</label>
-			<label kind="assignment" x="-136" y="178">tick=0</label>
-			<nail x="-9" y="161"/>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id17">
-			<source ref="id9"/>
-			<target ref="id7"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="-289" y="-51">vehicle_x&gt;0</label>
-			<label kind="assignment" x="-289" y="-34">vehicle_x = vehicle_x - 1</label>
-			<nail x="-170" y="-8"/>
-=======
-			<label kind="guard" x="-127" y="76">vehicle_x&gt;0</label>
-			<label kind="assignment" x="-127" y="93">vehicle_x = vehicle_x - 1</label>
-			<nail x="-9" y="111"/>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id18">
-			<source ref="id9"/>
-			<target ref="id10"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="-425" y="-161">vehicle_x&lt;=0</label>
-			<nail x="-314" y="-289"/>
-=======
-			<label kind="guard" x="-264" y="-42">vehicle_x&lt;=0</label>
-			<nail x="-153" y="-170"/>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id19">
-			<source ref="id8"/>
-			<target ref="id7"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="76" y="-59">vehicle_x&lt;GRID_W-1</label>
-			<label kind="assignment" x="76" y="-42">vehicle_x = vehicle_x + 1</label>
-			<nail x="153" y="-17"/>
-=======
-			<label kind="guard" x="238" y="68">vehicle_x&lt;GRID_W-1</label>
-			<label kind="assignment" x="238" y="85">vehicle_x = vehicle_x + 1</label>
-			<nail x="314" y="102"/>
->>>>>>> Stashed changes
-		</transition>
-		<transition id="id20">
-			<source ref="id7"/>
-			<target ref="id8"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="59" y="51">lane%2==0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="59" y="76">x=0</label>
-			<nail x="161" y="42"/>
-=======
-			<label kind="guard" x="238" y="161">lane%2==0 &amp;&amp; tick&gt;=speed</label>
-			<label kind="assignment" x="238" y="178">tick=0</label>
-			<nail x="322" y="161"/>
->>>>>>> Stashed changes
-		</transition>
-	</template>
-	<template>
-		<name>LogLane</name>
-		<declaration>// Template Vehicle
-clock tick;                    // local clock of Vehicle
-int pos;
 
-<<<<<<< Updated upstream
 
-int move_to_right(int pos) {
-    return (pos + 1) % (WIDTH + 2) -1
+
+
+
+
+
+
+
+
+
+// Test variables
+Cell TEST_LANE_DISPLAY[GRID_H][GRID_W] = {
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+};
+
+// Test functions
+
+void updateTestPosArray(PosY lane) {
+    int[0, GRID_W] i;
+
+    for (i = 0; i &lt; GRID_W; i++) {
+        TEST_LANE_DISPLAY[lane][i] = get_cell(lane, i);
+    }
 }
 
-=======
->>>>>>> Stashed changes
-//int lane = init_y;          // Initialization of the variable lane based on the input
-                              // Note that this measurement is fixed during the execution of the TA
-                              // ensuring that a vehicle stays in the same row in which is initialized 
-//int vehicle_x = init_x;     // Initialization of the coordinate x based on the input</declaration>
-		<location id="id21" x="-238" y="17">
-			<name x="-255" y="34">wait</name>
-<<<<<<< Updated upstream
-			<label kind="exponentialrate" x="-280" y="51">tick &lt; speed</label>
-=======
-			<label kind="exponentialrate" x="-280" y="51">tick&lt;=speed</label>
->>>>>>> Stashed changes
+
+</declaration>
+	<template>
+		<name>Lane</name>
+		<parameter>const PosY lane</parameter>
+		<declaration>// Template Lane
+clock tick;                    // local clock of the lane
+</declaration>
+		<location id="id0" x="-425" y="-51">
+			<name x="-442" y="-34">wait</name>
+			<label kind="invariant" x="-442" y="-17">tick &lt;= lane_speed_array[lane]</label>
 		</location>
-		<init ref="id21"/>
-		<transition id="id22">
-			<source ref="id21"/>
-			<target ref="id21"/>
-<<<<<<< Updated upstream
-			<label kind="guard" x="-93" y="-59">tick &gt;= speed</label>
-			<label kind="assignment" x="-93" y="-42">move_to_right(x)</label>
-=======
-			<label kind="guard" x="-93" y="-42">vx &lt;= -1</label>
-			<label kind="assignment" x="-93" y="-25">vx = vx + (-1)^(lane%2)</label>
->>>>>>> Stashed changes
-			<nail x="-102" y="17"/>
-			<nail x="-102" y="-68"/>
-			<nail x="-238" y="-68"/>
+		<init ref="id0"/>
+		<transition id="id1">
+			<source ref="id0"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-280" y="-144">tick &gt;= lane_speed_array[lane]</label>
+			<label kind="assignment" x="-280" y="-127">move_to_right(lane),
+updateTestPosArray(lane),
+tick = 0</label>
+			<nail x="-289" y="-51"/>
+			<nail x="-289" y="-153"/>
+			<nail x="-425" y="-153"/>
 		</transition>
 	</template>
-	<system>// Vehicle instantiations
-// OC - OrangeCar
-OC1 = Vehicle(1, 3, 4, 1);
-OC2 = Vehicle(1, 3, 14, 1);
+	<template>
+		<name>DivingTurtleCycle</name>
+		<declaration>// Template DivingTurtleCycle
+clock tick;                    // local clock of the diving turtle cycle
+</declaration>
+		<location id="id2" x="-646" y="42">
+			<name x="-671" y="59">emerged</name>
+			<label kind="invariant" x="-671" y="76">tick &lt;= 10</label>
+		</location>
+		<location id="id3" x="-646" y="-246">
+			<name x="-680" y="-229">submerged</name>
+			<label kind="invariant" x="-680" y="-212">tick &lt;= 10</label>
+		</location>
+		<location id="id4" x="-502" y="-93">
+			<name x="-485" y="-101">diving</name>
+			<label kind="exponentialrate" x="-485" y="-84">tick&lt;=5</label>
+		</location>
+		<location id="id5" x="-808" y="-93">
+			<name x="-783" y="-101">emerging</name>
+			<label kind="invariant" x="-782" y="-85">tick &lt;= 5</label>
+		</location>
+		<init ref="id2"/>
+		<transition id="id6">
+			<source ref="id5"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-893" y="-17">tick &gt;= 5</label>
+			<label kind="assignment" x="-885" y="0">tick = 0</label>
+			<nail x="-808" y="42"/>
+		</transition>
+		<transition id="id7">
+			<source ref="id3"/>
+			<target ref="id5"/>
+			<label kind="guard" x="-901" y="-220">tick &gt;= 10</label>
+			<label kind="assignment" x="-1122" y="-204">diving_turtles_are_submerged = false,
+tick = 0</label>
+			<nail x="-808" y="-246"/>
+		</transition>
+		<transition id="id8">
+			<source ref="id4"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-493" y="-220">tick &gt;= 5</label>
+			<label kind="assignment" x="-493" y="-203">diving_turtles_are_submerged = true,
+tick = 0</label>
+			<nail x="-502" y="-246"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id2"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-493" y="-17">tick &gt;= 10</label>
+			<label kind="assignment" x="-493" y="0">tick = 0</label>
+			<nail x="-502" y="42"/>
+		</transition>
+	</template>
+	<system>
+L1 = Lane(1);
+L2 = Lane(2);
+L3 = Lane(2);
+L4 = Lane(4);
+L5 = Lane(5);
 
-// B - Bulldozer
-B1 = Vehicle(1, 10, 2, 2);
-B2 = Vehicle(1, 10, 11, 2);
-
-// GC - GreenCar
-GC1 = Vehicle(1, 5, 4, 3);
-GC2 = Vehicle(1, 5, 8, 3);
-GC3 = Vehicle(1, 5, 12, 3);
-GC4 = Vehicle(1, 5, 16, 3);
-
-// PC - PurpleCar
-PC1 = Vehicle(1, 4, 2, 4);
-PC2 = Vehicle(1, 4, 10, 4);
-
-// T - Truck
-T1 = Vehicle(2, 7, 4, 5);
-T2 = Vehicle(2, 7, 15, 5);
-
-
-
-int L8_Positions[WIDTH] = {7, 8, 9, 11, 12, 13, 15, 16, 17}
-int L8_Speed = 4
-L8 = LogLane(L8_Positions, L8_Speed)
+L7 = Lane(7);
+L8 = Lane(8);
+L9 = Lane(9);
+L10 = Lane(10);
+L11 = Lane(11);
 
 // List one or more processes to be composed into a system.
-system OC1, OC2, B1, B2, GC1, GC2, GC3, GC4, PC1, PC2, T1, T2;
+system L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11;
 </system>
 	<queries>
 		<query>
