@@ -17,6 +17,12 @@ const int D = 5; // Diving turtle
 const int X = 6; // Wall
 const int H = 7; // Home bay
 
+// Enum
+const int UP = 0;
+const int RIGHT = 1;
+const int DOWN = 2;
+const int LEFT = 3;
+
 // Typedef
 typedef int[0, GRID_W-1] PosX;
 typedef int[0, GRID_H-1] PosY;
@@ -58,7 +64,8 @@ const int DIVING_TURTLE_TRANSITION_STATE_TIMER = 5;
 const int DIVING_TURTLE_STABLE_STATE_TIMER = 10;
 const int HOME_BAY_SPACING = 4;
 
-
+const int RESPAWN_TIME = 2 * 10; // 2 seconds * 10 tick/second = 20 tick
+const int MIN_TICK_BETWEEN_FROG_MOVE = 1;
 /// ======================================================================================== \\\
 
 
@@ -71,10 +78,11 @@ const int HOME_BAY_SPACING = 4;
 PosX frog_x = 9;
 PosY frog_y = 0;
 Lives lives = 5;
+int[0,30] level_time = 30;
 
 LanePosX lane_pos_array[GRID_H] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 bool diving_turtles_are_submerged = false;
-bool home_bay_occupied[5] = {false, false, false, false, false}
+bool home_bay_occupied[5] = {false, false, false, false, false};
 
 
 /// ----------------------------------[ Global Functions ]---------------------------------- \\\
@@ -102,7 +110,7 @@ void respawn() {
  *
  *   H H X X | H H X X | H H X X | H H X X | H H
  *
- * Therefore, each home bay starts every HOME_BAY_SPACING cells:
+ * Therefore, each home bay starts every HOME_BAY_SPACING (in this case 4) cells:
  *
  *   bay 0 -&gt; x = 0, 1
  *   bay 1 -&gt; x = 4, 5
@@ -116,7 +124,7 @@ void respawn() {
  *   0 / 4 = 0,  1 / 4 = 0
  *   4 / 4 = 1,  5 / 4 = 1
  *   8 / 4 = 2,  9 / 4 = 2
- *   12 / 4 = 3, 
+ *   12 / 4 = 3, 13 / 4 = 3
  *   16 / 4 = 4, 17 / 4 = 4
  *
  * Precondition:
@@ -130,6 +138,11 @@ void respawn() {
 bool is_current_home_bay_occupied() {
     return home_bay_occupied[frog_x / HOME_BAY_SPACING];
 }
+
+void set_current_home_bay_as_occupied() {
+    home_bay_occupied[frog_x / 4] = true;
+}
+
 
 
 
@@ -179,13 +192,13 @@ void check_frog_after_lane_move(PosY lane) {
 
 void kill_frog() {
     // todo: kill logic
-    respawn()
+    respawn();
 }
 
 void reach_home_bay() {
-    home_bay_occupied[frog_x / 4] = true;
+    set_current_home_bay_as_occupied();
     // todo: restart logic
-    respawn()
+    respawn();
 }
 
 
@@ -267,53 +280,116 @@ tick = 0</label>
 		</transition>
 	</template>
 	<template>
+		<name>Frog</name>
+		<declaration>/// Frog template
+clock tick;                    // local clock of the lane</declaration>
+		<location id="id2" x="-68" y="127">
+			<name x="-119" y="153">idle</name>
+		</location>
+		<location id="id3" x="-68" y="297">
+			<name x="-162" y="280">respawn</name>
+			<label kind="invariant" x="-272" y="297">tick &lt;= RESPAWN_TIME</label>
+		</location>
+		<location id="id4" x="-68" y="442">
+			<name x="-102" y="459">GAME OVER</name>
+		</location>
+		<location id="id5" x="620" y="127">
+			<committed/>
+		</location>
+		<branchpoint id="id6" x="255" y="127"/>
+		<init ref="id3"/>
+		<transition id="id7">
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="297" y="161">move_frog(DOWN)</label>
+			<label kind="probability" x="272" y="161">1</label>
+			<nail x="263" y="187"/>
+			<nail x="603" y="187"/>
+		</transition>
+		<transition id="id8">
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="289" y="229">move_frog(LEFT)</label>
+			<label kind="probability" x="272" y="229">2</label>
+			<nail x="255" y="255"/>
+			<nail x="612" y="255"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="281" y="59">move_frog(RIGHT)</label>
+			<label kind="probability" x="281" y="76">2</label>
+			<nail x="263" y="59"/>
+			<nail x="595" y="59"/>
+		</transition>
+		<transition id="id10">
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="272" y="-34">move_frog(UP)</label>
+			<label kind="probability" x="273" y="-17">5</label>
+			<nail x="255" y="-34"/>
+			<nail x="603" y="-34"/>
+		</transition>
+		<transition id="id11" controllable="false">
+			<source ref="id2"/>
+			<target ref="id6"/>
+			<label kind="guard" x="-51" y="102">tick &gt;= MIN_TICK_BETWEEN_FROG_MOVE</label>
+		</transition>
+		<transition id="id12">
+			<source ref="id3"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-26" y="238">lives &gt;= 1,</label>
+			<label kind="assignment" x="-26" y="255">tick = 0</label>
+		</transition>
+	</template>
+	<template>
 		<name>DivingTurtleCycle</name>
 		<declaration>// Template DivingTurtleCycle
 clock tick;                    // local clock of the diving turtle cycle
 </declaration>
-		<location id="id2" x="-782" y="-162">
+		<location id="id13" x="-782" y="-162">
 			<name x="-807" y="-145">emerged</name>
 			<label kind="invariant" x="-807" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id3" x="-782" y="-450">
+		<location id="id14" x="-782" y="-450">
 			<name x="-824" y="-484">submerged</name>
 			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id4" x="-638" y="-297">
+		<location id="id15" x="-638" y="-297">
 			<name x="-621" y="-305">diving</name>
 			<label kind="exponentialrate" x="-621" y="-288">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<location id="id5" x="-944" y="-297">
+		<location id="id16" x="-944" y="-297">
 			<name x="-1028" y="-314">emerging</name>
 			<label kind="invariant" x="-1334" y="-297">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<init ref="id2"/>
-		<transition id="id6">
-			<source ref="id5"/>
-			<target ref="id2"/>
+		<init ref="id13"/>
+		<transition id="id17">
+			<source ref="id16"/>
+			<target ref="id13"/>
 			<label kind="guard" x="-1326" y="-221">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="assignment" x="-1021" y="-204">tick = 0</label>
 			<nail x="-944" y="-162"/>
 		</transition>
-		<transition id="id7">
-			<source ref="id3"/>
-			<target ref="id5"/>
+		<transition id="id18">
+			<source ref="id14"/>
+			<target ref="id16"/>
 			<label kind="guard" x="-1292" y="-425">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-1258" y="-408">diving_turtles_are_submerged = false,
 tick = 0</label>
 			<nail x="-944" y="-450"/>
 		</transition>
-		<transition id="id8">
-			<source ref="id4"/>
-			<target ref="id3"/>
+		<transition id="id19">
+			<source ref="id15"/>
+			<target ref="id14"/>
 			<label kind="guard" x="-629" y="-424">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="assignment" x="-629" y="-407">diving_turtles_are_submerged = true,
 tick = 0</label>
 			<nail x="-638" y="-450"/>
 		</transition>
-		<transition id="id9">
-			<source ref="id2"/>
-			<target ref="id4"/>
+		<transition id="id20">
+			<source ref="id13"/>
+			<target ref="id15"/>
 			<label kind="guard" x="-629" y="-221">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-629" y="-204">tick = 0</label>
 			<nail x="-638" y="-162"/>
