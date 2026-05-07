@@ -54,6 +54,11 @@ const int lane_speed_array[GRID_H] = {0, 3, 10, 5, 4, 7, 0, 6, 2, 7, 2, 2, 0};
 // moving direction of the lane, +1 if from left to right, -1 from right lo left
 const Direction lane_direction_array[GRID_H] = {0, -1, 1, -1, 1, -1, 0, 1, 1, -1, 1, -1, 0};
 
+const int DIVING_TURTLE_TRANSITION_STATE_TIMER = 5;
+const int DIVING_TURTLE_STABLE_STATE_TIMER = 10;
+const int HOME_BAY_SPACING = 4;
+
+
 /// ======================================================================================== \\\
 
 
@@ -89,10 +94,44 @@ void respawn() {
 }
 
 
-
-bool is_home_bay_occupied() {
-    return home_bay_occupied[frog_x / 4];
+/*
+ * Checks whether the home bay corresponding to Frogger's current x-coordinate
+ * is already occupied.
+ *
+ * The home row is organized as five groups of four cells:
+ *
+ *   H H X X | H H X X | H H X X | H H X X | H H
+ *
+ * Therefore, each home bay starts every HOME_BAY_SPACING cells:
+ *
+ *   bay 0 -&gt; x = 0, 1
+ *   bay 1 -&gt; x = 4, 5
+ *   bay 2 -&gt; x = 8, 9
+ *   bay 3 -&gt; x = 12, 13
+ *   bay 4 -&gt; x = 16, 17
+ *
+ * Since both cells of the same home bay belong to the same block of size
+ * HOME_BAY_SPACING, integer division maps them to the correct bay index:
+ *
+ *   0 / 4 = 0,  1 / 4 = 0
+ *   4 / 4 = 1,  5 / 4 = 1
+ *   8 / 4 = 2,  9 / 4 = 2
+ *   12 / 4 = 3, 
+ *   16 / 4 = 4, 17 / 4 = 4
+ *
+ * Precondition:
+ *   This function should only be called after verifying that Frogger is
+ *   currently on an H cell. Wall cells such as x = 2 or x = 3 would also map
+ *   to bay 0, but they are not valid home bay cells.
+ *
+ * Returns:
+ *   true if the current home bay is already occupied, false otherwise.
+ */
+bool is_current_home_bay_occupied() {
+    return home_bay_occupied[frog_x / HOME_BAY_SPACING];
 }
+
+
 
 
 bool can_enter_cell(PosY y, PosX x) {
@@ -219,7 +258,7 @@ clock tick;                    // local clock of the lane
 			<source ref="id0"/>
 			<target ref="id0"/>
 			<label kind="guard" x="-280" y="-144">tick &gt;= lane_speed_array[lane]</label>
-			<label kind="assignment" x="-280" y="-127">move_to_right(lane),
+			<label kind="assignment" x="-280" y="-127">move_lane(lane),
 updateTestPosArray(lane),
 tick = 0</label>
 			<nail x="-289" y="-51"/>
@@ -232,52 +271,52 @@ tick = 0</label>
 		<declaration>// Template DivingTurtleCycle
 clock tick;                    // local clock of the diving turtle cycle
 </declaration>
-		<location id="id2" x="-646" y="42">
-			<name x="-671" y="59">emerged</name>
-			<label kind="invariant" x="-671" y="76">tick &lt;= 10</label>
+		<location id="id2" x="-782" y="-162">
+			<name x="-807" y="-145">emerged</name>
+			<label kind="invariant" x="-807" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id3" x="-646" y="-246">
-			<name x="-680" y="-229">submerged</name>
-			<label kind="invariant" x="-680" y="-212">tick &lt;= 10</label>
+		<location id="id3" x="-782" y="-450">
+			<name x="-824" y="-484">submerged</name>
+			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id4" x="-502" y="-93">
-			<name x="-485" y="-101">diving</name>
-			<label kind="exponentialrate" x="-485" y="-84">tick&lt;=5</label>
+		<location id="id4" x="-638" y="-297">
+			<name x="-621" y="-305">diving</name>
+			<label kind="exponentialrate" x="-621" y="-288">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<location id="id5" x="-808" y="-93">
-			<name x="-783" y="-101">emerging</name>
-			<label kind="invariant" x="-782" y="-85">tick &lt;= 5</label>
+		<location id="id5" x="-944" y="-297">
+			<name x="-1028" y="-314">emerging</name>
+			<label kind="invariant" x="-1334" y="-297">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
 		<init ref="id2"/>
 		<transition id="id6">
 			<source ref="id5"/>
 			<target ref="id2"/>
-			<label kind="guard" x="-893" y="-17">tick &gt;= 5</label>
-			<label kind="assignment" x="-885" y="0">tick = 0</label>
-			<nail x="-808" y="42"/>
+			<label kind="guard" x="-1326" y="-221">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+			<label kind="assignment" x="-1021" y="-204">tick = 0</label>
+			<nail x="-944" y="-162"/>
 		</transition>
 		<transition id="id7">
 			<source ref="id3"/>
 			<target ref="id5"/>
-			<label kind="guard" x="-901" y="-220">tick &gt;= 10</label>
-			<label kind="assignment" x="-1122" y="-204">diving_turtles_are_submerged = false,
+			<label kind="guard" x="-1292" y="-425">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+			<label kind="assignment" x="-1258" y="-408">diving_turtles_are_submerged = false,
 tick = 0</label>
-			<nail x="-808" y="-246"/>
+			<nail x="-944" y="-450"/>
 		</transition>
 		<transition id="id8">
 			<source ref="id4"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-493" y="-220">tick &gt;= 5</label>
-			<label kind="assignment" x="-493" y="-203">diving_turtles_are_submerged = true,
+			<label kind="guard" x="-629" y="-424">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+			<label kind="assignment" x="-629" y="-407">diving_turtles_are_submerged = true,
 tick = 0</label>
-			<nail x="-502" y="-246"/>
+			<nail x="-638" y="-450"/>
 		</transition>
 		<transition id="id9">
 			<source ref="id2"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-493" y="-17">tick &gt;= 10</label>
-			<label kind="assignment" x="-493" y="0">tick = 0</label>
-			<nail x="-502" y="42"/>
+			<label kind="guard" x="-629" y="-221">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+			<label kind="assignment" x="-629" y="-204">tick = 0</label>
+			<nail x="-638" y="-162"/>
 		</transition>
 	</template>
 	<system>
