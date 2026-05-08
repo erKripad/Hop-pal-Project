@@ -46,9 +46,8 @@ const int HOME_BAY_SCORE = 5;
 const int LEVEL_COMPLETE_SCORE = 100;
 
 // Typedef
-typedef int[0, LANE_W-1] PosX;
-typedef int[0, GRID_H-1] PosY;
 typedef int[0, LANE_W-1] LaneX;
+typedef int[0, GRID_H-1] PosY;
 typedef int[0, FROG_MAX_LIVES] Lives;
 typedef int[0, MAX_SCORE] Score;
 typedef int[0,7] Cell;
@@ -113,9 +112,12 @@ void add_score(int points) {
 }
 
 
+bool is_frog_visible() {
+    return frog_x &lt; GRID_W;
+}
 
-Cell get_cell(PosX x, PosY lane) {
-    return LANE_STRUCTURES[lane][(LANE_W + x - lane_pos_array[lane]) % LANE_W];
+Cell get_cell(LaneX x, PosY lane) {
+    return LANE_STRUCTURES[lane][(2*LANE_W + x - lane_pos_array[lane]) % LANE_W];
 }
 
 
@@ -153,7 +155,7 @@ Cell get_cell(PosX x, PosY lane) {
  * Returns:
  *   true if the home bay has already been occupied, false otherwise.
  */
-bool is_home_bay_occupied_at(PosX x) {
+bool is_home_bay_occupied_at(LaneX x) {
     return home_bay_occupied[x / HOME_BAY_SPACING];
 }
 
@@ -208,6 +210,7 @@ void kill_frog() {
 
 
 void move_frog(Direction dx, Direction dy) {
+
     int[-1,LANE_W] next_frog_x = frog_x + dx;
     int[-1,GRID_H] next_frog_y = frog_y + dy;
 
@@ -235,9 +238,8 @@ bool is_safe_turtle_cell(Cell cell) {
 
 bool is_frog_in_water_between_safe_turtles(Cell cell) {
     if (cell != W) return false;
-    if (frog_x == 0 || frog_x == GRID_W - 1) return false;
-    Cell left = get_cell(frog_x - 1, frog_y);
-    Cell right = get_cell(frog_x + 1, frog_y);
+    Cell left = get_cell((LANE_W + frog_x - 1) % LANE_W, frog_y);
+    Cell right = get_cell((x + 1) % LANE_W, frog_y);
     return left == right &amp;&amp; is_safe_turtle_cell(left);
 }
 
@@ -258,7 +260,7 @@ bool is_frog_on_deadly_cell() {
 
 
 void check_frog_after_lane_move(PosY lane) {
-    if ( frog_y == lane &amp;&amp; is_frog_dead() ) {
+    if ( frog_y == lane &amp;&amp; is_frog_on_deadly_cell() ) {
         // todo
     }
 }
@@ -371,10 +373,10 @@ clock tick;                    // local clock of the lane</declaration>
 		</location>
 		<location id="id3" x="-391" y="153">
 			<name x="-467" y="136">RESPAWN</name>
-			<label kind="invariant" x="-569" y="153">tick &lt;= RESPAWN_TIME</label>
+			<label kind="invariant" x="-578" y="153">tick &lt;= RESPAWN_TIME</label>
 		</location>
-		<location id="id4" x="892" y="-68">
-			<name x="858" y="-51">GAME OVER</name>
+		<location id="id4" x="765" y="-68">
+			<name x="731" y="-51">GAME OVER</name>
 		</location>
 		<location id="id5" x="340" y="-68">
 			<committed/>
@@ -392,7 +394,8 @@ clock tick;                    // local clock of the lane</declaration>
 		<transition id="id8">
 			<source ref="id5"/>
 			<target ref="id4"/>
-			<label kind="guard" x="408" y="-93">!is_frog_on_home_bay() &amp;&amp; is_frog_on_deadly_cell() &amp;&amp; lives &lt;= 1</label>
+			<label kind="guard" x="408" y="-110">!is_frog_on_home_bay() &amp;&amp; 
+is_frog_on_deadly_cell() &amp;&amp; lives &lt;= 1</label>
 			<label kind="assignment" x="408" y="-68">frog_game_over()</label>
 		</transition>
 		<transition id="id9">
@@ -407,7 +410,8 @@ clock tick;                    // local clock of the lane</declaration>
 		<transition id="id10" controllable="false">
 			<source ref="id2"/>
 			<target ref="id6"/>
-			<label kind="guard" x="-357" y="-93">tick &gt;= MIN_TICK_BETWEEN_FROG_MOVE</label>
+			<label kind="guard" x="-357" y="-110">tick &gt;= MIN_TICK_BETWEEN_FROG_MOVE 
+&amp;&amp; frog_x &lt; GRID_X</label>
 			<label kind="assignment" x="-357" y="-68">tick = 0</label>
 		</transition>
 		<transition id="id11">
