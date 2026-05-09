@@ -8,56 +8,81 @@ const int NUM_LANES = 5;
 const int MAX_VEHICLES = 4;
 
 // Typedef
-typedef int[1, 3] Lives;
+
 typedef int[0, GRID_W-1] PosX;
 typedef int[0, GRID_H-1] PosY;
 
 // Global variables
-PosX frog_x = 0;
-PosY frog_y = 9;
-Lives lives = 3;
+PosX frog_x = 9;
+PosY frog_y = 0;
 
 // Channels
-
+chan vehicle_moving;
+broadcast chan frog_moving;
 
 </declaration>
 	<template>
 		<name x="5" y="5">Frog</name>
 		<declaration>// Template Frog
-clock x;                // local clock of Frog     
+clock x;                // local clock of Frog
+clock game_clock;             
 
+Lives lives = 3;
+typedef int[1, 3] Lives;
 
+void loose_life(){
+    lives--;
+}
 </declaration>
 		<location id="id0" x="0" y="42">
-			<name x="25" y="33">stopped</name>
+			<name x="-42" y="8">wait</name>
 		</location>
-		<location id="id1" x="0" y="-144">
-			<name x="25" y="-153">move_up</name>
-			<label kind="invariant" x="-17" y="-178">x&lt;=1</label>
+		<location id="id1" x="0" y="331">
+			<name x="-17" y="348">dead</name>
+			<committed/>
 		</location>
-		<init ref="id0"/>
-		<transition id="id2">
-			<source ref="id1"/>
+		<location id="id2" x="306" y="331">
+			<name x="272" y="348">game_over</name>
+		</location>
+		<location id="id3" x="-272" y="42">
+			<name x="-357" y="34">respawn</name>
+			<label kind="invariant" x="-357" y="51">x&lt;=2</label>
+		</location>
+		<init ref="id3"/>
+		<transition id="id4">
+			<source ref="id0"/>
 			<target ref="id0"/>
-			<label kind="guard" x="42" y="-68">x&gt;=1</label>
-			<nail x="25" y="-51"/>
+			<label kind="guard" x="8" y="-127">x&gt;=1 &amp;&amp; frog_y&lt;GRID_H-1</label>
+			<label kind="synchronisation" x="8" y="-110">frog_moving!</label>
+			<label kind="assignment" x="8" y="-93">move_frog(),
+x=0</label>
+			<nail x="0" y="-51"/>
+			<nail x="93" y="-51"/>
 		</transition>
-		<transition id="id3">
+		<transition id="id5">
+			<source ref="id3"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-153" y="51">x&gt;=2</label>
+		</transition>
+		<transition id="id6">
+			<source ref="id1"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-365" y="136">lives&gt;0</label>
+			<label kind="assignment" x="-365" y="153">respawn(),
+x=0</label>
+			<nail x="-272" y="331"/>
+		</transition>
+		<transition id="id7">
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="127" y="331">lives==0</label>
+		</transition>
+		<transition id="id8">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="guard" x="-195" y="-93">lives&gt;0 &amp;&amp; 
-frog_y&lt;12</label>
-			<label kind="assignment" x="-195" y="-51">frog_y = frog_y + 1, 
-x = 0</label>
-			<nail x="-17" y="-8"/>
-			<nail x="-25" y="-51"/>
+			<label kind="synchronisation" x="-102" y="153">frog_killed?</label>
+			<label kind="assignment" x="-102" y="170">loose_life()</label>
 		</transition>
-	</template>
-	<template>
-		<name>GameController</name>
-		<location id="id4" x="0" y="0">
-		</location>
-		<init ref="id4"/>
 	</template>
 	<template>
 		<name>VehicleLane</name>
@@ -70,7 +95,7 @@ clock x;                    // local clock of Vehicle
                                             // ensuring that a vehicle stays in the same row in which is initialized 
 //int[-1, GRID_W] &amp;vehicle_x = init_x;      // Initialization of the coordinate x based on the input
 
-void move_left(int[-1, GRID_W]&amp; v[MAX_VEHICLES], int n) {
+void move_vehicle() {
     int i;
     for (i = 0; i &lt; n; i++) {
         if (v[i]==-1){
@@ -91,44 +116,114 @@ void move_right(int[-1, GRID_W]&amp; v[MAX_VEHICLES], int n) {
         }
     }
 }</declaration>
-		<location id="id5" x="-85" y="-246">
-			<name x="-102" y="-229">wait</name>
-			<label kind="invariant" x="-119" y="-212">x&lt;=speed</label>
+		<location id="id9" x="0" y="0">
+			<name x="-42" y="8">wait</name>
+			<label kind="invariant" x="-76" y="25">x&lt;=speed</label>
 		</location>
-		<location id="id6" x="246" y="-246">
-			<name x="272" y="-254">move_to_right</name>
+		<location id="id10" x="382" y="0">
+			<name x="399" y="-8">check_killed</name>
 			<committed/>
 		</location>
-		<location id="id7" x="-382" y="-246">
-			<name x="-509" y="-255">move_to_left</name>
-			<committed/>
-		</location>
-		<init ref="id5"/>
-		<transition id="id8">
-			<source ref="id5"/>
-			<target ref="id7"/>
-			<label kind="guard" x="-357" y="-212">lane%2!=0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="-357" y="-187">x=0</label>
-			<nail x="-238" y="-221"/>
-		</transition>
-		<transition id="id9">
-			<source ref="id7"/>
-			<target ref="id5"/>
-			<label kind="assignment" x="-357" y="-297">move_left(vehicle_x, n)</label>
-			<nail x="-238" y="-271"/>
-		</transition>
-		<transition id="id10">
-			<source ref="id6"/>
-			<target ref="id5"/>
-			<label kind="assignment" x="8" y="-305">move_right(vehicle_x, n)</label>
-			<nail x="85" y="-280"/>
-		</transition>
+		<init ref="id9"/>
 		<transition id="id11">
-			<source ref="id5"/>
-			<target ref="id6"/>
-			<label kind="guard" x="-9" y="-212">lane%2==0 &amp;&amp; x&gt;=speed</label>
-			<label kind="assignment" x="-9" y="-187">x=0</label>
-			<nail x="93" y="-221"/>
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="144" y="-119">lane==frog_y</label>
+			<label kind="synchronisation" x="144" y="-102">frog_moving?</label>
+			<nail x="59" y="-76"/>
+			<nail x="331" y="-76"/>
+		</transition>
+		<transition id="id12">
+			<source ref="id10"/>
+			<target ref="id9"/>
+			<label kind="guard" x="144" y="195">lane == frog_y &amp;&amp;
+check_killed()</label>
+			<label kind="synchronisation" x="144" y="238">frog_killed!</label>
+			<nail x="382" y="187"/>
+			<nail x="0" y="187"/>
+		</transition>
+		<transition id="id13">
+			<source ref="id10"/>
+			<target ref="id9"/>
+			<label kind="guard" x="136" y="8">lane != frog_y ||
+!check_killed()</label>
+		</transition>
+		<transition id="id14">
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="136" y="-263">x&gt;=speed</label>
+			<label kind="assignment" x="136" y="-246">move_vehicle(),
+x=0</label>
+			<nail x="0" y="-204"/>
+			<nail x="382" y="-204"/>
+		</transition>
+	</template>
+	<template>
+		<name>LogLane</name>
+		<location id="id15" x="153" y="-51">
+			<name x="170" y="-59">moving</name>
+			<committed/>
+		</location>
+		<location id="id16" x="-229" y="-51">
+			<name x="-280" y="-59">wait</name>
+			<label kind="invariant" x="-314" y="-43">x&lt;=speed</label>
+		</location>
+		<init ref="id16"/>
+		<transition id="id17">
+			<source ref="id15"/>
+			<target ref="id16"/>
+			<label kind="guard" x="-85" y="144">lane == frog_y &amp;&amp;
+isFrogOn()</label>
+			<label kind="synchronisation" x="-85" y="187">frog_moved!</label>
+			<nail x="153" y="136"/>
+			<nail x="-229" y="136"/>
+		</transition>
+		<transition id="id18">
+			<source ref="id15"/>
+			<target ref="id16"/>
+			<label kind="guard" x="-93" y="-43">lane != frog_y ||
+!isFrogOn()</label>
+		</transition>
+		<transition id="id19">
+			<source ref="id16"/>
+			<target ref="id15"/>
+			<label kind="guard" x="-93" y="-263">x&gt;=speed</label>
+			<label kind="assignment" x="-93" y="-246">move_log(),
+x=0</label>
+			<nail x="-229" y="-204"/>
+			<nail x="153" y="-204"/>
+		</transition>
+	</template>
+	<template>
+		<name>DivingTurtles</name>
+		<location id="id20" x="42" y="-280">
+			<name x="8" y="-314">Emerging</name>
+		</location>
+		<location id="id21" x="-263" y="-280">
+			<name x="-297" y="-314">Subemerged</name>
+		</location>
+		<location id="id22" x="-263" y="0">
+			<name x="-289" y="17">Diving</name>
+		</location>
+		<location id="id23" x="42" y="0">
+			<name x="17" y="17">Emerged</name>
+		</location>
+		<init ref="id23"/>
+		<transition id="id24">
+			<source ref="id20"/>
+			<target ref="id23"/>
+		</transition>
+		<transition id="id25">
+			<source ref="id21"/>
+			<target ref="id20"/>
+		</transition>
+		<transition id="id26">
+			<source ref="id22"/>
+			<target ref="id21"/>
+		</transition>
+		<transition id="id27">
+			<source ref="id23"/>
+			<target ref="id22"/>
 		</transition>
 	</template>
 	<system>// Vehicle Lane instantiations where VehicleLane( int size, int speed, int[-1, GRID_W]&amp; init_x[MAX_VEHICLES], int n, int[0, GRID_H-1] init_y )
