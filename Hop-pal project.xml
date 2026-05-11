@@ -1,167 +1,422 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
 <nta>
-	<declaration>// Map constants
+	<declaration>/*
+ * Global constants defining the grid and the logical lane width.
+ *
+ * GRID_W and GRID_H are the visible dimensions of the Frogger map.
+ * LANE_W is larger than GRID_W to model the two off-screen cells used by
+ * moving objects before they re-enter the visible map.
+ */
 const int GRID_W = 18;
 const int GRID_H = 13;
-const int NUM_LANES = 5;
-const int MAX_VEHICLES = 4;
-const int START_RIVER = 7;
+const int LANE_W = 20;
 
-// ciao
-// Typedef
+/*
+ * Initial Frogger position.
+ * Frogger is respawned here after death, timeout, or successful home bay reach.
+ */
+const int FROG_SPAWN_X = 9;
+const int FROG_SPAWN_Y = 0;
 
-typedef int[0, GRID_W+1] PosX;
+/*
+ * Game timing and score bounds.
+ * One Uppaal time unit corresponds to 0.1 seconds, hence 30 seconds are modeled
+ * as 300 time units and 2 seconds as 20 time units.
+ */
+const int FROG_MAX_LIVES = 5;
+const int MAX_SCORE = 4000;
+const int MAX_LEVEL_TIME = 30 * 10;           // 30 seconds * 10 tick/second = 300 tick
+const int TIME_DECREMENT_PER_LEVEL = 2 * 10;  // 2 seconds * 10 tick/second = 20 tick
+const int RESPAWN_TIME = 19;              // 2 seconds * 10 tick/second = 20 tick
+const int MIN_TICK_BETWEEN_FROG_MOVE = 1;
+
+const int RIGHT = 1;
+const int LEFT = -1;
+
+
+/*
+ * Diving turtle timing.
+ * Stable states are emerged/submerged, while transition states are
+ * diving/emerging.
+ */
+const int DIVING_TURTLE_TRANSITION_STATE_TIMER = 5;
+const int DIVING_TURTLE_STABLE_STATE_TIMER = 10;
+
+/*
+ * Home bay layout.
+ * There are five home bays, each placed every four cells on the home row.
+ */
+const int HOME_BAYS = 5;
+const int HOME_BAY_SPACING = 4;
+
+
+/*
+ * Score increments defined by the game rules.
+ */
+const int MOVE_UP_SCORE = 1;
+const int HOME_BAY_SCORE = 5;
+const int LEVEL_COMPLETE_SCORE = 100;
+
+/*
+ * Bounded integer types.
+ * LaneX ranges over the full logical lane, including off-screen cells.
+ * PosY ranges only over visible map rows.
+ */
+typedef int[0, LANE_W-1] PosX;
 typedef int[0, GRID_H-1] PosY;
+typedef int[0, FROG_MAX_LIVES] Lives;
+typedef int[0, MAX_SCORE] Score;
+typedef int [-1,1] Direction;
+typedef int[0,7] Cell;
 
-// Global variables
-PosX frog_x = 9;
-PosY frog_y = 0;
-bool subemerged = true;
+/// ----------------------------------[ Global Variables ]---------------------------------- \\\
+
+/*
+ * Frogger state variables.
+ * frog_x is a LaneX, so Frogger can also be carried into the two off-screen
+ * cells when riding a floating object.
+ */
+PosX frog_x = FROG_SPAWN_X;
+PosY frog_y = FROG_SPAWN_Y;
+
+/*
+ * Dynamic game state.
+ *
+ * diving_turtles_are_submerged exposes the current diving turtle phase to
+ * safety checks.
+ * home_bay_occupied records which of the five home bays have already been
+ * reached.
+ */
+bool diving_turtles_are_submerged = false;
+bool home_bay_occupied[HOME_BAYS] = {false, false, false, false, false};
+
+
+/// ----------------------------------[ Global Functions ]---------------------------------- \\\
+
+/*
+ * Adds points to the current score while saturating at MAX_SCORE.
+ *
+ * Input:
+ *   points - number of points to add.
+ *
+ * Effect:
+ *   Updates score without exceeding MAX_SCORE.
+ */
+void add_score(int points) {
+    score = (score + points &gt; MAX_SCORE) ? MAX_SCORE : score + points;
+}
+
+
+
+
+/*
+ * Checks whether the home bay corresponding to the x-coordinate given
+ * has already been reached and occupied.
+ *
+ * The home row is organized as five groups of four cells:
+ *
+ *   H H X X | H H X X | H H X X | H H X X | H H
+ *
+ * Therefore, each home bay starts every HOME_BAY_SPACING (in this case 4) cells:
+ *
+ *   bay 0 -&gt; x = 0, 1
+ *   bay 1 -&gt; x = 4, 5
+ *   bay 2 -&gt; x = 8, 9
+ *   bay 3 -&gt; x = 12, 13
+ *   bay 4 -&gt; x = 16, 17
+ *
+ * Since both cells of the same home bay belong to the same block of size
+ * HOME_BAY_SPACING, integer division maps them to the correct bay index:
+ *
+ *   0 / 4 = 0,  1 / 4 = 0
+ *   4 / 4 = 1,  5 / 4 = 1
+ *   8 / 4 = 2,  9 / 4 = 2
+ *   12 / 4 = 3, 13 / 4 = 3
+ *   16 / 4 = 4, 17 / 4 = 4
+ *
+ * Precondition:
+ *   This function should only be called after verifying that the given
+ *   x-coordinate is an H cell. Wall cells such as x = 2 or x = 3 would also map
+ *   to bay 0, but they are not valid home bay cells.
+ *
+ * Returns:
+ *   true if the home bay has already been occupied, false otherwise.
+ */
+bool is_current_home_bay_occupied() {
+    return home_bay_occupied[frog_x / HOME_BAY_SPACING];
+}
+
+
+/*
+ * Marks the home bay currently reached by Frogger as occupied.
+ *
+ * Precondition:
+ *   Frogger is currently on a valid H cell.
+ */
+void set_current_home_bay_as_occupied() {
+    home_bay_occupied[frog_x / HOME_BAY_SPACING] = true;
+}
+
+
+
+bool is_on_last_lane() {
+    return frog_y == GRID_H-1;
+}
+
+
+void kill_or_reach_hobe_bay() {
+    if ... poi lo faccio
+}
+
+
+/*
+ * Clears all occupied home bay flags.
+ *
+ * Effect:
+ *   Used when a new level starts.
+ */
+void clear_home_bays() {
+    int[0,HOME_BAYS]  i;
+    for (i = 0; i &lt; HOME_BAYS; i++) {
+        home_bay_occupied[i] = false;
+    }
+}
+
+/*
+ * Checks whether all home bays are occupied.
+ *
+ * Returns:
+ *   true if all five home bays have been reached, false otherwise.
+ */
+bool all_home_bays_occupied() {
+    int[0, HOME_BAYS] i;
+    for (i = 0; i &lt; HOME_BAYS; i++) {
+        if (!home_bay_occupied[i]) return false;
+    }
+    return true;
+}
+
+
+
+
 
 // Channels
 chan vehicle_moving;
-chan frog_killed;
+chan kill_frog;
 chan frog_on_floating;
 chan frog_moved;
-broadcast chan frog_moving;
-broadcast chan subemerging;</declaration>
+broadcast chan frog_moved;
+broadcast chan submerging;</declaration>
 	<template>
 		<name x="5" y="5">Frog</name>
 		<declaration>// Template Frog
-clock x;                // local clock of Frog
-clock game_clock;             
+clock tick;                // Frog movements
+clock timer;               // Level timer
 
-typedef int[1, 3] Lives;
-Lives lives = 3;
 
-void loose_life(){
-    lives--;
+
+
+Lives lives = FROG_MAX_LIVES;
+int[0,MAX_LEVEL_TIME] level_time = MAX_LEVEL_TIME;
+Score score = 0;
+
+
+/*
+ * Handles Frogger death.
+ *
+ * Effect:
+ *   Decreases lives and respawns Frogger. Score and lane positions are not reset.
+ */
+void handle_frog_death() {
+    lives = lives - 1;
+    respawn();
 }
 
-void respawn(){
-    frog_x = 9;
-    frog_y = 0;
+
+
+/*
+ * Repositions Frogger at the spawn cell.
+ *
+ * Effect:
+ *   Does not modify score, lives, lanes, or home bay occupancy.
+ */
+void respawn() {
+    frog_x = FROG_SPAWN_X;
+    frog_y = FROG_SPAWN_Y;
 }
 
-void moveFrog(){
-    frog_y++;
+/*
+ * Starts a new level.
+ *
+ * Effect:
+ *   Awards the level completion score, clears all home bays, and reduces the
+ *   available level time according to the project rules.
+ */
+void load_next_level() {
+    add_score(LEVEL_COMPLETE_SCORE);
+    clear_home_bays();
+    level_time = (level_time - TIME_DECREMENT_PER_LEVEL) &gt; 0 ? level_time - TIME_DECREMENT_PER_LEVEL : 0;
+}
+
+/*
+ * Handles a successful arrival in a free home bay.
+ *
+ * Effect:
+ *   Awards home bay points, marks the bay as occupied, loads the next level if
+ *   all bays are occupied, and respawns Frogger.
+ */
+void reach_home_bay() {
+    add_score(HOME_BAY_SCORE);
+    set_current_home_bay_as_occupied();
+    if (all_home_bays_occupied()) load_next_level();
+    respawn();
+}
+
+
+bool can_move(Direction dx, Direction dy)
+    // check if frog is trying exit the map
+    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) return false;
+
+    // check if frog is trying to move on an unreacheable cell
+    Cell next = get_cell(frog_x + dx, frog_y + dy);
+    if (next == X || (next == H &amp;&amp; is_home_bay_occupied_at(frog_x + dx) )) return false;
+
+    return true;
+
+
+
+void move() {
+    // update frog position
+    frog_x = frog_x + 1;
+    add_score(MOVE_UP_SCORE);
 }</declaration>
-		<location id="id0" x="0" y="42">
-			<name x="-51" y="51">wait</name>
+		<location id="id0" x="-3221" y="-3162">
+			<name x="-3238" y="-3145">Idle</name>
 		</location>
-		<location id="id1" x="0" y="331">
-			<name x="-17" y="348">dead</name>
+		<location id="id1" x="-3468" y="-3162">
+			<name x="-3519" y="-3171">Move</name>
 			<committed/>
 		</location>
-		<location id="id2" x="306" y="331">
-			<name x="272" y="348">game_over</name>
+		<location id="id2" x="-2941" y="-3162">
+			<name x="-2941" y="-3153">Respawn</name>
+			<label kind="invariant" x="-2941" y="-3136">tick &lt;= RESPAWN_TIME</label>
 		</location>
-		<location id="id3" x="-272" y="42">
-			<name x="-340" y="8">respawn_cooldown</name>
-			<label kind="invariant" x="-340" y="34">x&lt;=2</label>
+		<location id="id3" x="-2729" y="-3162">
+			<name x="-2763" y="-3196">Game Over</name>
 		</location>
-		<location id="id4" x="306" y="42">
-			<name x="331" y="34">moving</name>
-			<committed/>
-		</location>
-		<init ref="id3"/>
+		<init ref="id0"/>
+		<transition id="id4">
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-3417" y="-3051">is_on_last_lane()</label>
+			<label kind="assignment" x="-3417" y="-3034">kill_or_reach_home_bay()</label>
+			<nail x="-3425" y="-3051"/>
+			<nail x="-2975" y="-3051"/>
+		</transition>
 		<transition id="id5">
-			<source ref="id4"/>
-			<target ref="id0"/>
-			<label kind="synchronisation" x="119" y="51">frog_moving!</label>
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-3162" y="-3162">timer &gt;= level_time</label>
 		</transition>
 		<transition id="id6">
-			<source ref="id0"/>
-			<target ref="id4"/>
-			<label kind="guard" x="76" y="-110">x&gt;=1 &amp;&amp; frog_y&lt;GRID_H-1</label>
-			<label kind="assignment" x="76" y="-93">moveFrog(), x=0</label>
-			<nail x="0" y="-68"/>
-			<nail x="306" y="-68"/>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-2899" y="-3187">lives &lt;= 0</label>
 		</transition>
 		<transition id="id7">
-			<source ref="id3"/>
+			<source ref="id2"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-153" y="51">x&gt;=2</label>
+			<label kind="guard" x="-3162" y="-3271">tick &gt;= RESPAWN_TIME
+&amp;&amp; lives &gt;= 1</label>
+			<label kind="assignment" x="-3162" y="-3229">tick = 0, timer = 0</label>
+			<nail x="-2983" y="-3204"/>
+			<nail x="-3170" y="-3204"/>
 		</transition>
 		<transition id="id8">
-			<source ref="id1"/>
-			<target ref="id3"/>
-			<label kind="guard" x="-365" y="136">lives&gt;0</label>
-			<label kind="assignment" x="-365" y="153">respawn(),
-x=0</label>
-			<nail x="-272" y="331"/>
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-3162" y="-3119">kill_frog?</label>
+			<label kind="assignment" x="-3162" y="-3102">handle_frog_death()</label>
+			<nail x="-3170" y="-3119"/>
+			<nail x="-2983" y="-3119"/>
 		</transition>
 		<transition id="id9">
 			<source ref="id1"/>
-			<target ref="id2"/>
-			<label kind="guard" x="127" y="331">lives==0</label>
+			<target ref="id0"/>
+			<label kind="synchronisation" x="-3417" y="-3128">frog_moved!</label>
+			<nail x="-3426" y="-3128"/>
+			<nail x="-3264" y="-3128"/>
 		</transition>
 		<transition id="id10">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="synchronisation" x="-110" y="153">frog_killed?</label>
-			<label kind="assignment" x="-110" y="170">loose_life()</label>
+			<label kind="guard" x="-3417" y="-3264">tick &gt;= COOLDOWN
+&amp;&amp; can_move()</label>
+			<label kind="assignment" x="-3417" y="-3221">move()</label>
+			<nail x="-3264" y="-3196"/>
+			<nail x="-3426" y="-3197"/>
 		</transition>
 	</template>
 	<template>
 		<name>VehicleLane</name>
-		<parameter>int speed, int[0, 1]&amp; vehicle_x[GRID_W+2], int[0, GRID_H-1] lane</parameter>
-		<declaration>// Template Vehicle
-clock x;                    // local clock of Vehicle     
-int shift = 0;
+		<parameter>const int[0, GRID_H-1] lane, const int speed, const Direction direction, const int[0, 1]&amp; lane_structure[GRID_W+2], </parameter>
+		<declaration>
+// Costanti
+const Direction direction = (lane_y % 2 == 0) ? RIGHT : LEFT
 
-void moveVehicle(){
-    if(lane%2==0){
-        shift++;
-    } else {
-        shift--;
-    }
-    shift = ((shift % (GRID_W+2)) + (GRID_W+2)) % (GRID_W+2);
+// Template Vehicle
+clock tick;                    // local clock of Vehicle     
+
+int[0,LANE_W-1] shift = 0;
+
+
+void move_lane() {
+    shift = (LANE_W + shift + direction) % LANE_W;
 }
 
-bool checkKilled() {
-    int x_norm = ((frog_x - shift) % (GRID_W+2) + (GRID_W+2)) % (GRID_W+2);
-    return vehicle_x[x_norm] == 1;
+bool collision() {
+    return lane_structure[(LANE_W + x - shift) % LANE_W];
 }</declaration>
-		<location id="id11" x="0" y="0">
-			<name x="-42" y="8">wait</name>
-			<label kind="invariant" x="-76" y="25">x&lt;=speed</label>
+		<location id="id11" x="-178" y="-51">
+			<name x="-220" y="-43">Wait</name>
+			<label kind="invariant" x="-280" y="-26">tick&lt;=speed</label>
 		</location>
-		<location id="id12" x="382" y="0">
-			<name x="399" y="-8">check_killed</name>
+		<location id="id12" x="204" y="-51">
+			<name x="221" y="-59">CheckFrog</name>
 			<committed/>
 		</location>
 		<init ref="id11"/>
 		<transition id="id13">
-			<source ref="id11"/>
-			<target ref="id12"/>
-			<label kind="guard" x="144" y="-119">lane==frog_y</label>
-			<label kind="synchronisation" x="144" y="-102">frog_moving?</label>
-			<nail x="59" y="-76"/>
-			<nail x="331" y="-76"/>
-		</transition>
-		<transition id="id14">
 			<source ref="id12"/>
 			<target ref="id11"/>
-			<label kind="guard" x="85" y="195">lane==frog_y &amp;&amp; checkKilled()</label>
-			<label kind="synchronisation" x="144" y="221">frog_killed!</label>
-			<nail x="382" y="187"/>
-			<nail x="0" y="187"/>
+			<label kind="guard" x="-110" y="8">frog_y != lane_y || !collision()</label>
+			<nail x="153" y="8"/>
+			<nail x="-119" y="8"/>
+		</transition>
+		<transition id="id14">
+			<source ref="id11"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
+			<nail x="-119" y="-110"/>
+			<nail x="153" y="-110"/>
 		</transition>
 		<transition id="id15">
 			<source ref="id12"/>
 			<target ref="id11"/>
-			<label kind="guard" x="59" y="8">lane!=frog_y || !checkKilled()</label>
+			<label kind="guard" x="-110" y="85">frog_y == lane_y &amp;&amp; collision()</label>
+			<label kind="synchronisation" x="-110" y="102">kill_frog!</label>
+			<nail x="170" y="85"/>
+			<nail x="-144" y="85"/>
 		</transition>
 		<transition id="id16">
 			<source ref="id11"/>
 			<target ref="id12"/>
-			<label kind="guard" x="136" y="-263">x&gt;=speed</label>
-			<label kind="assignment" x="136" y="-246">moveVehicle(),
-x=0</label>
-			<nail x="0" y="-204"/>
-			<nail x="382" y="-204"/>
+			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
+			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
+			<nail x="-144" y="-187"/>
+			<nail x="170" y="-187"/>
 		</transition>
 	</template>
 	<template>
