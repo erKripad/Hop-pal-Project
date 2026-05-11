@@ -8,6 +8,7 @@ const int NUM_LANES = 5;
 const int MAX_VEHICLES = 4;
 const int START_RIVER = 7;
 
+// ciao
 // Typedef
 
 typedef int[0, GRID_W+1] PosX;
