@@ -72,13 +72,22 @@ typedef int[0,7] Cell;
 
 /// ----------------------------------[ Global Variables ]---------------------------------- \\\
 
+
+clock timer;
+
+
+
 /*
  * Frogger state variables.
- * frog_x is a LaneX, so Frogger can also be carried into the two off-screen
+ * frog_x is a larger than GRID width, so Frogger can also be carried into the two off-screen
  * cells when riding a floating object.
  */
 PosX frog_x = FROG_SPAWN_X;
 PosY frog_y = FROG_SPAWN_Y;
+Lives lives = FROG_MAX_LIVES;
+int[0,MAX_LEVEL_TIME] level_time = MAX_LEVEL_TIME;
+Score score = 0;
+
 
 /*
  * Dynamic game state.
@@ -212,14 +221,10 @@ broadcast chan submerging;</declaration>
 		<name x="5" y="5">Frog</name>
 		<declaration>// Template Frog
 clock tick;                // Frog movements
-clock timer;               // Level timer
 
 
 
 
-Lives lives = FROG_MAX_LIVES;
-int[0,MAX_LEVEL_TIME] level_time = MAX_LEVEL_TIME;
-Score score = 0;
 
 
 /*
@@ -379,8 +384,7 @@ bool collision() {
     return lane_structure[(LANE_W + x - shift) % LANE_W];
 }</declaration>
 		<location id="id11" x="-178" y="-51">
-			<name x="-220" y="-43">Wait</name>
-			<label kind="invariant" x="-280" y="-26">tick&lt;=speed</label>
+			<name x="-229" y="-59">Wait</name>
 		</location>
 		<location id="id12" x="204" y="-51">
 			<name x="221" y="-59">CheckFrog</name>
@@ -423,7 +427,7 @@ bool collision() {
 		<name>FloatingLane</name>
 		<parameter>int speed, int[0, 2]&amp; log_x[GRID_W+2], int[0, GRID_H-1] lane</parameter>
 		<declaration>// Template Log
-clock x;                    // local clock of Log
+clock tick;                    // local clock of Log
 int shift = 0;
     
 bool checkKilled(){
@@ -447,7 +451,6 @@ void moveLog(){
 }</declaration>
 		<location id="id17" x="-229" y="-51">
 			<name x="-212" y="-85">wait</name>
-			<label kind="invariant" x="-212" y="-102">x&lt;=speed</label>
 		</location>
 		<location id="id18" x="-595" y="-51">
 			<committed/>
