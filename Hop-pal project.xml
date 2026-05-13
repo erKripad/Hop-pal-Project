@@ -37,7 +37,7 @@ const int FROG_SPAWN_Y = 0;
  *   by this declaration alone.
  */
 const int FROG_MAX_LIVES = 5;
-const int MAX_SCORE = 3000;
+const int MAX_SCORE = 1;
 
 const int MAX_LEVEL_TIME = 30 * 10;           // 30 seconds * 10 ticks/seconds = 300 ticks
 const int TIME_DECREMENT_PER_LEVEL = 2 * 10;  // 2 seconds * 10 ticks/seconds = 20 ticks
@@ -725,7 +725,7 @@ F = Frogger();
 system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, Frogger;</system>
 	<queries>
 		<query>
-			<formula/>
+			<formula>E&lt;&gt; L1.shift == 3</formula>
 			<comment/>
 		</query>
 	</queries>
