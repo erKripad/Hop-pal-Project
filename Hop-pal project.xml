@@ -37,7 +37,7 @@ const int FROG_SPAWN_Y = 0;
  *   by this declaration alone.
  */
 const int FROG_MAX_LIVES = 5;
-const int MAX_SCORE = 1;
+const int MAX_SCORE = 4500;
 
 const int MAX_LEVEL_TIME = 30 * 10;           // 30 seconds * 10 ticks/seconds = 300 ticks
 const int TIME_DECREMENT_PER_LEVEL = 2 * 10;  // 2 seconds * 10 ticks/seconds = 20 ticks
@@ -167,9 +167,9 @@ clock timer;
  */
 PosX frog_x = FROG_SPAWN_X;
 PosY frog_y = FROG_SPAWN_Y;
-Lives lives = FROG_MAX_LIVES;
+
 int[0, MAX_LEVEL_TIME] level_time = MAX_LEVEL_TIME;
-Score score = 0;
+meta Score score = 0;
 
 /*
  * Shared dynamic flags.
@@ -318,6 +318,7 @@ broadcast chan diving_turtles_submerged;</declaration>
 // ------------------------------ Local Variables --------------------------------
 clock tick;
 
+Lives lives = FROG_MAX_LIVES;
 
 // ------------------------------ Local Utilities --------------------------------
 
@@ -513,6 +514,7 @@ bool collision() {
 }</declaration>
 		<location id="id11" x="-195" y="-51">
 			<name x="-246" y="-59">Wait</name>
+			<label kind="invariant" x="-323" y="-42">tick &lt;= speed</label>
 		</location>
 		<location id="id12" x="229" y="-51">
 			<name x="246" y="-59">CheckFrog</name>
@@ -722,10 +724,10 @@ L11 = FloatingLane(11);
 
 F = Frogger();
 
-system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, Frogger;</system>
+system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, F;</system>
 	<queries>
 		<query>
-			<formula>E&lt;&gt; L1.shift == 3</formula>
+			<formula>E&lt;&gt; frog_y==6 &amp;&amp; F.lives == 3</formula>
 			<comment/>
 		</query>
 	</queries>
