@@ -347,6 +347,11 @@ void load_next_level() {
     level_time = (level_time - TIME_DECREMENT_PER_LEVEL) &gt; 0 ? level_time - TIME_DECREMENT_PER_LEVEL : 0;
 }
 
+void reset_after_move() {
+    frog_on_diving_turtles = false;
+    tick=0;
+}
+
 /*
  * Handles arrival in a free home bay.
  * The bay is marked, points are awarded, and Frogger is respawned.
@@ -401,7 +406,6 @@ bool can_move() {
 void move() {
     frog_y = frog_y + 1;
     add_score(MOVE_UP_SCORE);
-    tick = 0;
 }</declaration>
 		<location id="id0" x="-3221" y="-3162">
 			<name x="-3238" y="-3145">Idle</name>
@@ -412,6 +416,7 @@ void move() {
 		</location>
 		<location id="id2" x="-2890" y="-3162">
 			<name x="-2890" y="-3153">Dead</name>
+			<label kind="invariant" x="-2898" y="-3136">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 		</location>
 		<location id="id3" x="-2678" y="-3162">
 			<name x="-2712" y="-3196">GameOver</name>
@@ -421,7 +426,7 @@ void move() {
 			<source ref="id1"/>
 			<target ref="id2"/>
 			<label kind="guard" x="-3502" y="-3043">on_finish_lane()</label>
-			<label kind="assignment" x="-3502" y="-3026">kill_or_reach_home_bay()</label>
+			<label kind="assignment" x="-3502" y="-3026">tick = 0, kill_or_reach_home_bay(), reset_after_move()</label>
 			<nail x="-3519" y="-3043"/>
 			<nail x="-2941" y="-3042"/>
 		</transition>
@@ -429,7 +434,7 @@ void move() {
 			<source ref="id0"/>
 			<target ref="id2"/>
 			<label kind="guard" x="-3128" y="-3203">timer &gt;= level_time</label>
-			<label kind="assignment" x="-3128" y="-3186">lives = lives - 1</label>
+			<label kind="assignment" x="-3128" y="-3186">tick = 0, lives--</label>
 		</transition>
 		<transition id="id6">
 			<source ref="id2"/>
@@ -440,7 +445,7 @@ void move() {
 			<source ref="id2"/>
 			<target ref="id0"/>
 			<label kind="guard" x="-3128" y="-3271">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN) &amp;&amp; lives &gt;= 1</label>
-			<label kind="assignment" x="-3128" y="-3254">tick = 0, timer = 0, respawn()</label>
+			<label kind="assignment" x="-3128" y="-3254">tick = 0, respawn()</label>
 			<nail x="-2949" y="-3229"/>
 			<nail x="-3145" y="-3228"/>
 		</transition>
@@ -448,7 +453,7 @@ void move() {
 			<source ref="id0"/>
 			<target ref="id2"/>
 			<label kind="synchronisation" x="-3128" y="-3110">kill_frog?</label>
-			<label kind="assignment" x="-3128" y="-3093">lives = lives - 1</label>
+			<label kind="assignment" x="-3128" y="-3094">tick = 0, lives--</label>
 			<nail x="-3136" y="-3110"/>
 			<nail x="-2949" y="-3110"/>
 		</transition>
@@ -457,7 +462,7 @@ void move() {
 			<target ref="id0"/>
 			<label kind="guard" x="-3510" y="-3179">!on_finish_lane()</label>
 			<label kind="synchronisation" x="-3510" y="-3162">frog_moved!</label>
-			<label kind="assignment" x="-3510" y="-3145">frog_on_diving_turtle = false</label>
+			<label kind="assignment" x="-3510" y="-3145">tick = 0, reset_after_move()</label>
 			<nail x="-3518" y="-3119"/>
 			<nail x="-3272" y="-3119"/>
 		</transition>
