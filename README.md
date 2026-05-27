@@ -12,8 +12,8 @@ Engineering* course (Politecnico di Milano, A.Y. 2025–2026).
 
 ```
 .
-├── Hop-pal_project - Stochastic Version.xml   # Stochastic Model
-├── Hop-pal_project - Symbolic Version.xml     # Stochastic Model
+├── Hop-pal project - Stochastic Version.xml   # Stochastic Model
+├── Hop-pal project - Symbolic Version.xml     # Stochastic Model
 ├── presentation/                              # LaTeX report
 │   ├── presentation.tex
 │   └── images/
@@ -41,7 +41,7 @@ Engineering* course (Politecnico di Milano, A.Y. 2025–2026).
 1. Clone or download this repository.
 2. Open UPPAAL.
 3. Go to **File → Open System...**
-4. Select the file `Hop-pal_project_-_Symbolic_Version.xml` from the repository.
+4. Select the file `Hop-pal project - Symbolic Version.xml` or `Hop-pal project - Stochastic Version.xml` from the repository.
 
 Once loaded, the templates appear under the **Editor** tab. Use the
 **Simulator** tab to explore the system step by step, or the **Verifier** tab
