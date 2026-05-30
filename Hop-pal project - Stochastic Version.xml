@@ -4,6 +4,7 @@
 	<declaration>// ============================= GLOBAL DECLARATIONS =============================
 // Model parameters, shared state, and utility functions used by all templates.
 
+
 // ------------------------------ Grid and timing ------------------------------
 
 /*
@@ -39,15 +40,29 @@ const int TIME_DECREMENT_PER_LEVEL = 2 * 10;  // 2 seconds * 10 ticks/seconds = 
 const int RESPAWN_TIME = 2 * 10;              // 2 seconds * 10 ticks/seconds = 20 ticks
 const int MOVE_COOLDOWN = 1;                  // 1 tick
 
-const int MAX_LEVELS = MAX_LEVEL_TIME/TIME_DECREMENT_PER_LEVEL
+const int MAX_LEVELS = MAX_LEVEL_TIME/TIME_DECREMENT_PER_LEVEL;
 
-const int UP = 1;
-const int DOWN = -1;
-const int RIGHT = 1;
-const int LEFT = -1;
-const int SAME = 0;
 
-// ------------------------------ Cell encoding ------------------------------
+// ------------------------------ Bounded types ------------------------------
+
+/*
+ * Bounded integer types keep the symbolic state space finite.
+ * PosX ranges over the logical lane width, including the two off-screen cells.
+ */
+typedef int[0, LANE_W - 1] PosX;
+typedef int[0, GRID_H - 1] PosY;
+typedef int[0, FROG_MAX_LIVES] Lives;
+typedef int[0, MAX_SCORE] Score;
+typedef int[-1, 1] Direction;
+typedef int[0, 4] Cell;
+
+
+const Direction UP = 1;
+const Direction DOWN = -1;
+const Direction RIGHT = 1;
+const Direction LEFT = -1;
+const Direction SAME = 0;
+
 
 /*
  * Logical cell encoding used inside LANE_STRUCTURES.
@@ -62,14 +77,14 @@ const int SAME = 0;
  * For this reason, these constants should be interpreted together with the row
  * being checked, not as globally unique terrain identifiers.
  */
-const int S = 0; // safe/static street cell
-const int W = 0; // water cell without floating support
-const int V = 1; // vehicle-covered cell
-const int L = 1; // log-supported cell
-const int T = 1; // turtle-supported cell
-const int D = 2; // diving-turtle-supported cell
-const int X = 3; // wall between home bays
-const int H = 4; // valid home-bay cell
+const Cell S = 0; // safe/static street cell
+const Cell W = 0; // water cell without floating support
+const Cell V = 1; // vehicle-covered cell
+const Cell L = 1; // log-supported cell
+const Cell T = 1; // turtle-supported cell
+const Cell D = 2; // diving-turtle-supported cell
+const Cell X = 3; // wall between home bays
+const Cell H = 4; // valid home-bay cell
 
 /*
  * Diving-turtle phase durations.
@@ -100,18 +115,6 @@ const int MOVE_UP_SCORE = 1;
 const int HOME_BAY_SCORE = 5;
 const int LEVEL_COMPLETE_SCORE = 100;
 
-// ------------------------------ Bounded types ------------------------------
-
-/*
- * Bounded integer types keep the symbolic state space finite.
- * PosX ranges over the logical lane width, including the two off-screen cells.
- */
-typedef int[0, LANE_W - 1] PosX;
-typedef int[0, GRID_H - 1] PosY;
-typedef int[0, FROG_MAX_LIVES] Lives;
-typedef int[0, MAX_SCORE] Score;
-typedef int[-1, 1] Direction;
-typedef int[0, 4] Cell;
 
 // ------------------------------ Lane structure ------------------------------
 
@@ -318,6 +321,8 @@ broadcast chan diving_turtles_submerged;</declaration>
 // ------------------------------ Local Variables --------------------------------
 clock tick;
 
+// ------------------------------ Bounded types ------------------------------
+
 Lives lives = FROG_MAX_LIVES;
 
 // ------------------------------ Local Utilities --------------------------------
@@ -335,7 +340,7 @@ void reset_frog() {
 
 
 int get_level_time() {
-    int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * level)
+    int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * level);
     return level_time &gt; 0 ? level_time : 0;
 }
 
@@ -395,11 +400,10 @@ void move_frog(Direction dx, Direction dy) {
     if (frog_x &lt; 0 || frog_x &gt;= GRID_W) return;
 
     // check if frog is trying exit the map
-    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) return;
+    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) {return;}
 
     // check if frog can move into the desired cell
-    Cell cell = LANE_STRUCTURES[lane_y + dy][frog_x + dx];
-    if (cell == X || (cell == H &amp;&amp; is_current_home_bay_occupied())) return;
+    if (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == X || (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == H &amp;&amp; is_current_home_bay_occupied())) return;
 
     // update frog position
     frog_x = frog_x + dx;
@@ -409,9 +413,10 @@ void move_frog(Direction dx, Direction dy) {
     if (dy == UP) add_score(MOVE_UP_SCORE);
 }
 </declaration>
-		<location id="id0" x="-3144" y="-3017">
-			<name x="-3187" y="-3017">Idle</name>
-			<label kind="invariant" x="-3332" y="-3000">tick &lt;= MOVE_COOLDOWN</label>
+		<location id="id0" x="-3145" y="-3017">
+			<name x="-3188" y="-3017">Idle</name>
+			<label kind="invariant" x="-3366" y="-3000">tick &lt;= MOVE_COOLDOWN &amp;&amp; 
+timer &lt;= get_level_time()</label>
 		</location>
 		<location id="id1" x="-3714" y="-3017">
 			<name x="-3765" y="-3026">Move</name>
@@ -528,7 +533,7 @@ void move_frog(Direction dx, Direction dy) {
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
-const row = lane_y;
+const int row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
@@ -599,58 +604,13 @@ bool collision() {
 		</transition>
 	</template>
 	<template>
-		<name>VehicleLaneDynamic</name>
-		<parameter>const PosY lane_y</parameter>
-		<location id="id24" x="-195" y="-51">
-			<name x="-246" y="-59">Wait</name>
-			<label kind="invariant" x="-323" y="-42">tick &lt;= speed</label>
-			<label kind="exponentialrate" x="-272" y="-25">1/speed</label>
-		</location>
-		<location id="id25" x="229" y="-51">
-			<name x="246" y="-59">CheckFrog</name>
-			<committed/>
-		</location>
-		<init ref="id24"/>
-		<transition id="id26">
-			<source ref="id25"/>
-			<target ref="id24"/>
-			<label kind="guard" x="-110" y="8">frog_y != lane_y || !collision()</label>
-			<nail x="153" y="8"/>
-			<nail x="-119" y="8"/>
-		</transition>
-		<transition id="id27">
-			<source ref="id24"/>
-			<target ref="id25"/>
-			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
-			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
-			<nail x="-119" y="-110"/>
-			<nail x="153" y="-110"/>
-		</transition>
-		<transition id="id28">
-			<source ref="id25"/>
-			<target ref="id24"/>
-			<label kind="guard" x="-110" y="85">frog_y == lane_y &amp;&amp; collision()</label>
-			<label kind="synchronisation" x="-110" y="102">kill_frog!</label>
-			<nail x="170" y="85"/>
-			<nail x="-144" y="85"/>
-		</transition>
-		<transition id="id29">
-			<source ref="id24"/>
-			<target ref="id25"/>
-			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
-			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
-			<nail x="-144" y="-187"/>
-			<nail x="170" y="-187"/>
-		</transition>
-	</template>
-	<template>
 		<name>FloatingLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// ========================== FLOATING LANE DECLARATION =========================
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
-const row = lane_y;
+const int row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
@@ -693,50 +653,50 @@ bool drowning() {
     int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
     return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
 }</declaration>
-		<location id="id30" x="-6358" y="-5788">
+		<location id="id24" x="-6358" y="-5788">
 			<name x="-6400" y="-5780">Wait</name>
 			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
 		</location>
-		<location id="id31" x="-5950" y="-5788">
+		<location id="id25" x="-5950" y="-5788">
 			<name x="-5933" y="-5796">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id30"/>
-		<transition id="id32">
-			<source ref="id30"/>
-			<target ref="id30"/>
+		<init ref="id24"/>
+		<transition id="id26">
+			<source ref="id24"/>
+			<target ref="id24"/>
 			<label kind="guard" x="-6579" y="-5856">tick &gt;= speed</label>
 			<label kind="assignment" x="-6647" y="-5839">move_lane(), tick = 0</label>
 			<nail x="-6460" y="-5788"/>
 			<nail x="-6460" y="-5865"/>
 			<nail x="-6358" y="-5865"/>
 		</transition>
-		<transition id="id33">
-			<source ref="id31"/>
-			<target ref="id30"/>
+		<transition id="id27">
+			<source ref="id25"/>
+			<target ref="id24"/>
 			<label kind="guard" x="-6273" y="-5754">frog_y != lane_y || !drowning()</label>
 			<nail x="-6010" y="-5728"/>
 			<nail x="-6282" y="-5728"/>
 		</transition>
-		<transition id="id34">
-			<source ref="id30"/>
-			<target ref="id31"/>
+		<transition id="id28">
+			<source ref="id24"/>
+			<target ref="id25"/>
 			<label kind="guard" x="-6273" y="-5890">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5873">frog_moved?</label>
 			<nail x="-6282" y="-5847"/>
 			<nail x="-6010" y="-5847"/>
 		</transition>
-		<transition id="id35">
-			<source ref="id31"/>
-			<target ref="id30"/>
+		<transition id="id29">
+			<source ref="id25"/>
+			<target ref="id24"/>
 			<label kind="guard" x="-6273" y="-5653">frog_y == lane_y &amp;&amp; drowning()</label>
 			<label kind="synchronisation" x="-6273" y="-5635">kill_frog!</label>
 			<nail x="-5993" y="-5652"/>
 			<nail x="-6299" y="-5653"/>
 		</transition>
-		<transition id="id36">
-			<source ref="id30"/>
-			<target ref="id31"/>
+		<transition id="id30">
+			<source ref="id24"/>
+			<target ref="id25"/>
 			<label kind="guard" x="-6273" y="-5967">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5950">diving_turtles_submerged?</label>
 			<nail x="-6299" y="-5924"/>
@@ -752,48 +712,48 @@ bool drowning() {
 // Only the submerged phase disables D support in floating-lane safety checks.
 
 clock tick;</declaration>
-		<location id="id37" x="-781" y="-162">
+		<location id="id31" x="-781" y="-162">
 			<name x="-806" y="-145">Emerged</name>
 			<label kind="invariant" x="-806" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id38" x="-782" y="-450">
+		<location id="id32" x="-782" y="-450">
 			<name x="-824" y="-484">Submerged</name>
 			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id39" x="-637" y="-297">
+		<location id="id33" x="-637" y="-297">
 			<name x="-620" y="-305">Diving</name>
 			<label kind="invariant" x="-620" y="-289">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<location id="id40" x="-943" y="-298">
+		<location id="id34" x="-943" y="-298">
 			<name x="-1028" y="-314">Emerging</name>
 			<label kind="invariant" x="-1333" y="-298">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<init ref="id37"/>
-		<transition id="id41">
-			<source ref="id40"/>
-			<target ref="id37"/>
+		<init ref="id31"/>
+		<transition id="id35">
+			<source ref="id34"/>
+			<target ref="id31"/>
 			<label kind="guard" x="-1325" y="-222">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="assignment" x="-1020" y="-205">tick = 0</label>
 			<nail x="-943" y="-163"/>
 		</transition>
-		<transition id="id42">
-			<source ref="id38"/>
-			<target ref="id40"/>
+		<transition id="id36">
+			<source ref="id32"/>
+			<target ref="id34"/>
 			<label kind="guard" x="-1291" y="-426">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-1343" y="-408">diving_turtles_are_submerged = false, tick = 0</label>
 			<nail x="-943" y="-451"/>
 		</transition>
-		<transition id="id43">
-			<source ref="id39"/>
-			<target ref="id38"/>
+		<transition id="id37">
+			<source ref="id33"/>
+			<target ref="id32"/>
 			<label kind="guard" x="-628" y="-425">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="synchronisation" x="-628" y="-409">diving_turtles_submerged!</label>
 			<label kind="assignment" x="-629" y="-391">diving_turtles_are_submerged = true, tick = 0</label>
 			<nail x="-637" y="-451"/>
 		</transition>
-		<transition id="id44">
-			<source ref="id37"/>
-			<target ref="id39"/>
+		<transition id="id38">
+			<source ref="id31"/>
+			<target ref="id33"/>
 			<label kind="guard" x="-628" y="-222">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-628" y="-205">tick = 0</label>
 			<nail x="-637" y="-163"/>
@@ -812,17 +772,15 @@ L9 = FloatingLane(9);
 L10 = FloatingLane(10);
 L11 = FloatingLane(11);
 
-DTC = DivingTurtleCycle()
+DTC = DivingTurtleCycle();
 
 F = Frogger();
 
 system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<query>
-			<formula>E&lt;&gt; (home_bay_occupied[0] == true)</formula>
+			<formula>E&lt;&gt;(frog_on_diving_turtle &amp;&amp; F.Dead)</formula>
 			<comment/>
-			<result outcome="failure" type="quality" timestamp="2026-05-16 15:44:16 +0200">
-			</result>
 		</query>
 	</queries>
 </nta>
