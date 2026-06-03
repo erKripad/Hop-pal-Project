@@ -451,12 +451,6 @@ void update_prob() {
     }
 }
 
-
-
-bool can_move() {
-    return !(frog_x &lt; 0  || frog_x &gt;= GRID_W) &amp;&amp; !(LANE_STRUCTURES[frog_y+1][frog_x] == X || ((LANE_STRUCTURES[frog_y+1][frog_x] == H &amp;&amp; is_current_home_bay_occupied())));
-}
-
 /*
  * Checks whether Frogger is on the home row.
  */
@@ -519,27 +513,19 @@ timer &lt;= get_level_time()</label>
 		<branchpoint id="id5" x="-3425" y="-3017"/>
 		<init ref="id4"/>
 		<transition id="id6">
-			<source ref="id0"/>
-			<target ref="id0"/>
-			<label kind="guard" x="-3068" y="-2958">!can_move()</label>
-			<label kind="assignment" x="-3068" y="-2941">tick=0</label>
-			<nail x="-3068" y="-2958"/>
-			<nail x="-3111" y="-2932"/>
-		</transition>
-		<transition id="id7">
 			<source ref="id2"/>
 			<target ref="id4"/>
 			<label kind="guard" x="-2813" y="-3111">lives &gt; 0</label>
 			<label kind="assignment" x="-2813" y="-3094">reset_frog()</label>
 			<nail x="-2822" y="-3162"/>
 		</transition>
-		<transition id="id8">
+		<transition id="id7">
 			<source ref="id2"/>
 			<target ref="id3"/>
 			<label kind="guard" x="-2813" y="-2949">lives &lt;= 0</label>
 			<label kind="assignment" x="-2813" y="-2932">reset_frog()</label>
 		</transition>
-		<transition id="id9">
+		<transition id="id8">
 			<source ref="id1"/>
 			<target ref="id4"/>
 			<label kind="guard" x="-3740" y="-3204">on_home_bay()</label>
@@ -547,7 +533,7 @@ timer &lt;= get_level_time()</label>
 			<nail x="-3756" y="-3094"/>
 			<nail x="-3756" y="-3162"/>
 		</transition>
-		<transition id="id10">
+		<transition id="id9">
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-3663" y="-3094">move_frog(SAME, UP)</label>
@@ -555,7 +541,7 @@ timer &lt;= get_level_time()</label>
 			<nail x="-3450" y="-3094"/>
 			<nail x="-3688" y="-3094"/>
 		</transition>
-		<transition id="id11">
+		<transition id="id10">
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-3689" y="-3051">move_frog(RIGHT, SAME)</label>
@@ -563,7 +549,7 @@ timer &lt;= get_level_time()</label>
 			<nail x="-3450" y="-3051"/>
 			<nail x="-3688" y="-3051"/>
 		</transition>
-		<transition id="id12">
+		<transition id="id11">
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-3680" y="-2958">move_frog(LEFT, SAME)</label>
@@ -571,7 +557,7 @@ timer &lt;= get_level_time()</label>
 			<nail x="-3450" y="-2941"/>
 			<nail x="-3680" y="-2941"/>
 		</transition>
-		<transition id="id13">
+		<transition id="id12">
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-3680" y="-3000">move_frog(SAME, DOWN)</label>
@@ -579,14 +565,13 @@ timer &lt;= get_level_time()</label>
 			<nail x="-3450" y="-2983"/>
 			<nail x="-3688" y="-2983"/>
 		</transition>
-		<transition id="id14" controllable="false">
+		<transition id="id13" controllable="false">
 			<source ref="id0"/>
 			<target ref="id5"/>
-			<label kind="guard" x="-3374" y="-3068">tick &gt;= MOVE_COOLDOWN &amp;&amp;
-can_move()</label>
+			<label kind="guard" x="-3374" y="-3051">tick &gt;= MOVE_COOLDOWN</label>
 			<label kind="assignment" x="-3374" y="-3017">update_prob()</label>
 		</transition>
-		<transition id="id15">
+		<transition id="id14">
 			<source ref="id0"/>
 			<target ref="id2"/>
 			<label kind="guard" x="-3085" y="-3085">timer &gt;= get_level_time()</label>
@@ -594,13 +579,13 @@ can_move()</label>
 			<nail x="-3086" y="-3043"/>
 			<nail x="-2881" y="-3043"/>
 		</transition>
-		<transition id="id16">
+		<transition id="id15">
 			<source ref="id4"/>
 			<target ref="id0"/>
 			<label kind="guard" x="-3476" y="-3136">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 			<label kind="assignment" x="-3221" y="-3119">tick = 0</label>
 		</transition>
-		<transition id="id17">
+		<transition id="id16">
 			<source ref="id0"/>
 			<target ref="id2"/>
 			<label kind="synchronisation" x="-3077" y="-3026">kill_frog?</label>
@@ -608,7 +593,7 @@ can_move()</label>
 			<nail x="-3077" y="-2992"/>
 			<nail x="-2881" y="-2991"/>
 		</transition>
-		<transition id="id18">
+		<transition id="id17">
 			<source ref="id1"/>
 			<target ref="id0"/>
 			<label kind="guard" x="-3740" y="-2873">!on_home_bay()</label>
@@ -654,41 +639,41 @@ void move_lane() {
 bool collision() {
     return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W];
 }</declaration>
-		<location id="id19" x="-195" y="-51">
+		<location id="id18" x="-195" y="-51">
 			<name x="-246" y="-59">Wait</name>
 			<label kind="invariant" x="-323" y="-42">tick &lt;= speed</label>
 		</location>
-		<location id="id20" x="229" y="-51">
+		<location id="id19" x="229" y="-51">
 			<name x="246" y="-59">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id19"/>
-		<transition id="id21">
-			<source ref="id20"/>
-			<target ref="id19"/>
+		<init ref="id18"/>
+		<transition id="id20">
+			<source ref="id19"/>
+			<target ref="id18"/>
 			<label kind="guard" x="-110" y="8">frog_y != lane_y || !collision()</label>
 			<nail x="153" y="8"/>
 			<nail x="-119" y="8"/>
 		</transition>
-		<transition id="id22">
-			<source ref="id19"/>
-			<target ref="id20"/>
+		<transition id="id21">
+			<source ref="id18"/>
+			<target ref="id19"/>
 			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
 			<nail x="-119" y="-110"/>
 			<nail x="153" y="-110"/>
 		</transition>
-		<transition id="id23">
-			<source ref="id20"/>
-			<target ref="id19"/>
+		<transition id="id22">
+			<source ref="id19"/>
+			<target ref="id18"/>
 			<label kind="guard" x="-110" y="85">frog_y == lane_y &amp;&amp; collision()</label>
 			<label kind="synchronisation" x="-110" y="102">kill_frog!</label>
 			<nail x="170" y="85"/>
 			<nail x="-144" y="85"/>
 		</transition>
-		<transition id="id24">
-			<source ref="id19"/>
-			<target ref="id20"/>
+		<transition id="id23">
+			<source ref="id18"/>
+			<target ref="id19"/>
 			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
 			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
 			<nail x="-144" y="-187"/>
@@ -730,41 +715,41 @@ void move_lane() {
 bool collision() {
     return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W];
 }</declaration>
-		<location id="id25" x="-450" y="-102">
+		<location id="id24" x="-450" y="-102">
 			<name x="-501" y="-110">Wait</name>
 			<label kind="exponentialrate" x="-527" y="-93">1:speed</label>
 		</location>
-		<location id="id26" x="-26" y="-102">
+		<location id="id25" x="-26" y="-102">
 			<name x="-9" y="-110">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id25"/>
-		<transition id="id27">
-			<source ref="id26"/>
-			<target ref="id25"/>
+		<init ref="id24"/>
+		<transition id="id26">
+			<source ref="id25"/>
+			<target ref="id24"/>
 			<label kind="guard" x="-365" y="-43">frog_y != lane_y || !collision()</label>
 			<nail x="-102" y="-43"/>
 			<nail x="-374" y="-43"/>
 		</transition>
-		<transition id="id28">
-			<source ref="id25"/>
-			<target ref="id26"/>
+		<transition id="id27">
+			<source ref="id24"/>
+			<target ref="id25"/>
 			<label kind="guard" x="-365" y="-204">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-365" y="-187">frog_moved?</label>
 			<nail x="-374" y="-161"/>
 			<nail x="-102" y="-161"/>
 		</transition>
-		<transition id="id29">
-			<source ref="id26"/>
-			<target ref="id25"/>
+		<transition id="id28">
+			<source ref="id25"/>
+			<target ref="id24"/>
 			<label kind="guard" x="-365" y="34">frog_y == lane_y &amp;&amp; collision()</label>
 			<label kind="synchronisation" x="-365" y="51">kill_frog!</label>
 			<nail x="-85" y="34"/>
 			<nail x="-399" y="34"/>
 		</transition>
-		<transition id="id30">
-			<source ref="id25"/>
-			<target ref="id26"/>
+		<transition id="id29">
+			<source ref="id24"/>
+			<target ref="id25"/>
 			<label kind="guard" x="-365" y="-280">tick &gt;= 1</label>
 			<label kind="assignment" x="-365" y="-263">move_lane(), tick = 0</label>
 			<nail x="-399" y="-238"/>
@@ -820,50 +805,50 @@ bool drowning() {
     int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W];
     return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
 }</declaration>
-		<location id="id31" x="-6358" y="-5788">
+		<location id="id30" x="-6358" y="-5788">
 			<name x="-6400" y="-5780">Wait</name>
 			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
 		</location>
-		<location id="id32" x="-5950" y="-5788">
+		<location id="id31" x="-5950" y="-5788">
 			<name x="-5933" y="-5796">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id31"/>
-		<transition id="id33">
-			<source ref="id31"/>
-			<target ref="id31"/>
+		<init ref="id30"/>
+		<transition id="id32">
+			<source ref="id30"/>
+			<target ref="id30"/>
 			<label kind="guard" x="-6579" y="-5856">tick &gt;= speed</label>
 			<label kind="assignment" x="-6647" y="-5839">move_lane(), tick = 0</label>
 			<nail x="-6460" y="-5788"/>
 			<nail x="-6460" y="-5865"/>
 			<nail x="-6358" y="-5865"/>
 		</transition>
-		<transition id="id34">
-			<source ref="id32"/>
-			<target ref="id31"/>
+		<transition id="id33">
+			<source ref="id31"/>
+			<target ref="id30"/>
 			<label kind="guard" x="-6273" y="-5754">frog_y != lane_y || !drowning()</label>
 			<nail x="-6010" y="-5728"/>
 			<nail x="-6282" y="-5728"/>
 		</transition>
-		<transition id="id35">
-			<source ref="id31"/>
-			<target ref="id32"/>
+		<transition id="id34">
+			<source ref="id30"/>
+			<target ref="id31"/>
 			<label kind="guard" x="-6273" y="-5890">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5873">frog_moved?</label>
 			<nail x="-6282" y="-5847"/>
 			<nail x="-6010" y="-5847"/>
 		</transition>
-		<transition id="id36">
-			<source ref="id32"/>
-			<target ref="id31"/>
+		<transition id="id35">
+			<source ref="id31"/>
+			<target ref="id30"/>
 			<label kind="guard" x="-6273" y="-5653">frog_y == lane_y &amp;&amp; drowning()</label>
 			<label kind="synchronisation" x="-6273" y="-5635">kill_frog!</label>
 			<nail x="-5993" y="-5652"/>
 			<nail x="-6299" y="-5653"/>
 		</transition>
-		<transition id="id37">
-			<source ref="id31"/>
-			<target ref="id32"/>
+		<transition id="id36">
+			<source ref="id30"/>
+			<target ref="id31"/>
 			<label kind="guard" x="-6273" y="-5967">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5950">diving_turtles_submerged?</label>
 			<nail x="-6299" y="-5924"/>
@@ -879,48 +864,48 @@ bool drowning() {
 // Only the submerged phase disables D support in floating-lane safety checks.
 
 clock tick;</declaration>
-		<location id="id38" x="-781" y="-162">
+		<location id="id37" x="-781" y="-162">
 			<name x="-806" y="-145">Emerged</name>
 			<label kind="invariant" x="-806" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id39" x="-782" y="-450">
+		<location id="id38" x="-782" y="-450">
 			<name x="-824" y="-484">Submerged</name>
 			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id40" x="-637" y="-297">
+		<location id="id39" x="-637" y="-297">
 			<name x="-620" y="-305">Diving</name>
 			<label kind="invariant" x="-620" y="-289">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<location id="id41" x="-943" y="-298">
+		<location id="id40" x="-943" y="-298">
 			<name x="-1028" y="-314">Emerging</name>
 			<label kind="invariant" x="-1333" y="-298">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<init ref="id38"/>
-		<transition id="id42">
-			<source ref="id41"/>
-			<target ref="id38"/>
+		<init ref="id37"/>
+		<transition id="id41">
+			<source ref="id40"/>
+			<target ref="id37"/>
 			<label kind="guard" x="-1325" y="-222">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="assignment" x="-1020" y="-205">tick = 0</label>
 			<nail x="-943" y="-163"/>
 		</transition>
-		<transition id="id43">
-			<source ref="id39"/>
-			<target ref="id41"/>
+		<transition id="id42">
+			<source ref="id38"/>
+			<target ref="id40"/>
 			<label kind="guard" x="-1291" y="-426">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-1343" y="-408">diving_turtles_are_submerged = false, tick = 0</label>
 			<nail x="-943" y="-451"/>
 		</transition>
-		<transition id="id44">
-			<source ref="id40"/>
-			<target ref="id39"/>
+		<transition id="id43">
+			<source ref="id39"/>
+			<target ref="id38"/>
 			<label kind="guard" x="-628" y="-425">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="synchronisation" x="-628" y="-409">diving_turtles_submerged!</label>
 			<label kind="assignment" x="-629" y="-391">diving_turtles_are_submerged = true, tick = 0</label>
 			<nail x="-637" y="-451"/>
 		</transition>
-		<transition id="id45">
-			<source ref="id38"/>
-			<target ref="id40"/>
+		<transition id="id44">
+			<source ref="id37"/>
+			<target ref="id39"/>
 			<label kind="guard" x="-628" y="-222">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-628" y="-205">tick = 0</label>
 			<nail x="-637" y="-163"/>
@@ -956,255 +941,269 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 		<query>
 			<formula>E[&lt;=1000; 1000](max: score)</formula>
 			<comment/>
-			<result outcome="success" type="quantity" value="20.352 ± 0.369752 (95% CI)" timestamp="2026-06-03 16:05:15 +0200">
-				<details>20.352 ± 0.369752 (95% CI)</details>
+			<result outcome="success" type="quantity" value="20.437 ± 0.368279 (95% CI)" timestamp="2026-06-03 16:12:49 +0200">
+				<details>20.437 ± 0.368279 (95% CI)</details>
 				<plot title="Probability Density Distribution" xaxis="max: score" yaxis="probability density">
 					<series title="density" type="b(1.000000)" color="0x0000ff" encoding="csv">9.0,0.014
-10.0,0.049
-11.0,0.028
-12.0,0.04
-13.0,0.019
-14.0,0.008
-15.0,0.055
-16.0,0.096
-17.0,0.021
-18.0,0.064
-19.0,0.034
-20.0,0.042
-21.0,0.137
-22.0,0.035
-23.0,0.038
-24.0,0.045
-25.0,0.053
-26.0,0.072
-27.0,0.011
-28.0,0.03
-29.0,0.058
-30.0,0.02
-31.0,0.009
-32.0,0.007
+10.0,0.041
+11.0,0.031
+12.0,0.032
+13.0,0.022
+14.0,0.007
+15.0,0.051
+16.0,0.106
+17.0,0.018
+18.0,0.072
+19.0,0.037
+20.0,0.038
+21.0,0.144
+22.0,0.029
+23.0,0.036
+24.0,0.054
+25.0,0.057
+26.0,0.065
+27.0,0.007
+28.0,0.014
+29.0,0.072
+30.0,0.025
+31.0,0.004
+32.0,0.005
 33.0,0.007
 34.0,0.003
-35.0,0.0
+35.0,0.001
 36.0,0.005
+37.0,0.0
+38.0,0.003
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.352,0.0
-20.352,0.137
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.437,0.0
+20.437,0.144
 					</series>
-					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=28
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=30
 Runs: 1000 in total, 1000 (100%) displayed, 0 (0%) remaining
-Span of displayed sample: [9, 36]
-Mean estimate of displayed sample: 20.352 ± 0.36975 (95% CI)</comment>
+Span of displayed sample: [9, 38]
+Mean estimate of displayed sample: 20.437 ± 0.36828 (95% CI)</comment>
 				</plot>
 				<plot title="Probability Distribution" xaxis="max: score" yaxis="probability">
 					<series title="probability" type="b(1.000000)" color="0x0000ff" encoding="csv">9.0,0.014
-10.0,0.049
-11.0,0.028
-12.0,0.04
-13.0,0.019
-14.0,0.008
-15.0,0.055
-16.0,0.096
-17.0,0.021
-18.0,0.064
-19.0,0.034
-20.0,0.042
-21.0,0.137
-22.0,0.035
-23.0,0.038
-24.0,0.045
-25.0,0.053
-26.0,0.072
-27.0,0.011
-28.0,0.03
-29.0,0.058
-30.0,0.02
-31.0,0.009
-32.0,0.007
+10.0,0.041
+11.0,0.031
+12.0,0.032
+13.0,0.022
+14.0,0.007
+15.0,0.051
+16.0,0.106
+17.0,0.018
+18.0,0.072
+19.0,0.037
+20.0,0.038
+21.0,0.144
+22.0,0.029
+23.0,0.036
+24.0,0.054
+25.0,0.057
+26.0,0.065
+27.0,0.007
+28.0,0.014
+29.0,0.072
+30.0,0.025
+31.0,0.004
+32.0,0.005
 33.0,0.007
 34.0,0.003
-35.0,0.0
+35.0,0.001
 36.0,0.005
+37.0,0.0
+38.0,0.003
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.352,0.0
-20.352,0.137
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.437,0.0
+20.437,0.144
 					</series>
-					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=28
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=30
 Runs: 1000 in total, 1000 (100%) displayed, 0 (0%) remaining
-Span of displayed sample: [9, 36]
-Mean estimate of displayed sample: 20.352 ± 0.36975 (95% CI)</comment>
+Span of displayed sample: [9, 38]
+Mean estimate of displayed sample: 20.437 ± 0.36828 (95% CI)</comment>
 				</plot>
 				<plot title="Cumulative Probability Distribution" xaxis="max: score" yaxis="probability">
 					<series title="cumulative" type="l" color="0x000000" encoding="csv">9.0,0.0
 10.0,0.014
-11.0,0.063
-12.0,0.091
-13.0,0.131
-14.0,0.15
-15.0,0.158
-16.0,0.213
-17.0,0.309
-18.0,0.33
+11.0,0.055
+12.0,0.086
+13.0,0.118
+14.0,0.14
+15.0,0.147
+16.0,0.198
+17.0,0.304
+18.0,0.322
 19.0,0.394
-20.0,0.428
-21.0,0.47
-22.0,0.607
+20.0,0.431
+21.0,0.469
+22.0,0.613
 23.0,0.642
-24.0,0.68
-25.0,0.725
-26.0,0.778
-27.0,0.85
+24.0,0.678
+25.0,0.732
+26.0,0.789
+27.0,0.854
 28.0,0.861
-29.0,0.891
-30.0,0.949
-31.0,0.969
-32.0,0.978
-33.0,0.985
-34.0,0.992
-35.0,0.995
-36.0,0.995
+29.0,0.875
+30.0,0.947
+31.0,0.972
+32.0,0.976
+33.0,0.981
+34.0,0.988
+35.0,0.991
+36.0,0.992
+37.0,0.997
+38.0,0.997
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.352,0.0
-20.352,1.0
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.437,0.0
+20.437,1.0
 					</series>
-					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=28
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=30
 Runs: 1000 in total, 1000 (100%) displayed, 0 (0%) remaining
-Span of displayed sample: [9, 36]
-Mean estimate of displayed sample: 20.352 ± 0.36975 (95% CI)</comment>
+Span of displayed sample: [9, 38]
+Mean estimate of displayed sample: 20.437 ± 0.36828 (95% CI)</comment>
 				</plot>
 				<plot title="Cumulative Probability Confidence Intervals" xaxis="max: score" yaxis="probability">
 					<series title="upper limit" type="k" color="0x0000dd" encoding="csv">9.0,0.003682083896865672
 10.0,0.023378156010314503
-11.0,0.07988804187335452
-12.0,0.11055149410186921
-13.0,0.15350117040015693
-14.0,0.17365812856703597
-15.0,0.18210760248785857
-16.0,0.2397029679261252
-17.0,0.33867132471628764
-18.0,0.36011172565397365
+11.0,0.07099151554205749
+12.0,0.10512026843432662
+13.0,0.13962772053444028
+14.0,0.16306571520095467
+15.0,0.1704840798790891
+16.0,0.22407220517161827
+17.0,0.3335564386896888
+18.0,0.35195185521337063
 19.0,0.42506119827106315
-20.0,0.4593412041446149
-21.0,0.5014836820760212
-22.0,0.637418756989346
+20.0,0.46235875955960853
+21.0,0.5004828555633052
+22.0,0.6433173635457233
 23.0,0.6717585560070759
-24.0,0.7088462891186512
-25.0,0.7524786563444994
-26.0,0.8034090737361161
-27.0,0.8715751888838272
+24.0,0.7068996236579648
+25.0,0.7592354937182122
+26.0,0.8139080459892263
+27.0,0.8753179617106233
 28.0,0.881854147235034
-29.0,0.9096418523230806
-30.0,0.9617947632253139
-31.0,0.9788418280297914
-32.0,0.9861625858279262
-33.0,0.9915809502499656
-34.0,0.9965400238346707
-35.0,0.9983745804824372
-36.0,0.9983745804824372
+29.0,0.8948702384454075
+30.0,0.9600507476399807
+31.0,0.9813153138044625
+32.0,0.9845636167664915
+33.0,0.988522963006899
+34.0,0.9937844744404047
+35.0,0.9958766043396575
+36.0,0.9965400238346707
+37.0,0.9993809000683505
+38.0,0.9993809000683505
 					</series>
 					<series title="lower limit" type="k" color="0xdd0000" encoding="csv">9.0,0.0
 10.0,0.00767450156502078
-11.0,0.04874692755658056
-12.0,0.0738991299424797
-13.0,0.11069846103121972
-14.0,0.1284248111161728
-15.0,0.1359265161849648
-16.0,0.1879988518060795
-17.0,0.28045803172733574
-18.0,0.30089307541900645
+11.0,0.04169879507953599
+12.0,0.06936253057241368
+13.0,0.09865251639489678
+14.0,0.11907849738135581
+15.0,0.1256172111335115
+16.0,0.17371978110414948
+17.0,0.275602599219098
+18.0,0.29310037634203523
 19.0,0.3635648097272305
-20.0,0.3970838977135092
-21.0,0.43869341194103906
-22.0,0.5759493233510821
+20.0,0.4000486224245834
+21.0,0.43770014204901375
+22.0,0.5820152430808955
 23.0,0.6114024906519152
-24.0,0.6500896181471334
-25.0,0.6961899225470708
-26.0,0.7509430816188933
-27.0,0.826341871432964
+24.0,0.6480481447866294
+25.0,0.703391407966259
+26.0,0.7623781277644036
+27.0,0.830574624546146
 28.0,0.8379954961445099
-29.0,0.8700216346570648
-30.0,0.9334865384050651
-31.0,0.9562849149937611
-32.0,0.9668803354850122
-33.0,0.9753802999029588
-34.0,0.9842979508239253
-35.0,0.9883705294401879
-36.0,0.9883705294401879
+29.0,0.8528930172212289
+30.0,0.9312448167100368
+31.0,0.9597851126261567
+32.0,0.9644993614686408
+33.0,0.9704875983749022
+34.0,0.9791323204089636
+35.0,0.9829842169301054
+36.0,0.9842979508239253
+37.0,0.9912579767615217
+38.0,0.9912579767615217
 					</series>
 					<series title="cumulative" type="l" color="0x000000" encoding="csv">9.0,0.0
 10.0,0.014
-11.0,0.063
-12.0,0.091
-13.0,0.131
-14.0,0.15
-15.0,0.158
-16.0,0.213
-17.0,0.309
-18.0,0.33
+11.0,0.055
+12.0,0.086
+13.0,0.118
+14.0,0.14
+15.0,0.147
+16.0,0.198
+17.0,0.304
+18.0,0.322
 19.0,0.394
-20.0,0.428
-21.0,0.47
-22.0,0.607
+20.0,0.431
+21.0,0.469
+22.0,0.613
 23.0,0.642
-24.0,0.68
-25.0,0.725
-26.0,0.778
-27.0,0.85
+24.0,0.678
+25.0,0.732
+26.0,0.789
+27.0,0.854
 28.0,0.861
-29.0,0.891
-30.0,0.949
-31.0,0.969
-32.0,0.978
-33.0,0.985
-34.0,0.992
-35.0,0.995
-36.0,0.995
+29.0,0.875
+30.0,0.947
+31.0,0.972
+32.0,0.976
+33.0,0.981
+34.0,0.988
+35.0,0.991
+36.0,0.992
+37.0,0.997
+38.0,0.997
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.352,0.0
-20.352,1.0
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.437,0.0
+20.437,1.0
 					</series>
-					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=28
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=30
 Runs: 1000 in total, 1000 (100%) displayed, 0 (0%) remaining
-Span of displayed sample: [9, 36]
-Mean estimate of displayed sample: 20.352 ± 0.36975 (95% CI)</comment>
+Span of displayed sample: [9, 38]
+Mean estimate of displayed sample: 20.437 ± 0.36828 (95% CI)</comment>
 				</plot>
 				<plot title="Frequency Histogram" xaxis="max: score" yaxis="count">
 					<series title="count" type="b(1.000000)" color="0x0000ff" encoding="csv">9.0,14.0
-10.0,49.0
-11.0,28.0
-12.0,40.0
-13.0,19.0
-14.0,8.0
-15.0,55.0
-16.0,96.0
-17.0,21.0
-18.0,64.0
-19.0,34.0
-20.0,42.0
-21.0,137.0
-22.0,35.0
-23.0,38.0
-24.0,45.0
-25.0,53.0
-26.0,72.0
-27.0,11.0
-28.0,30.0
-29.0,58.0
-30.0,20.0
-31.0,9.0
-32.0,7.0
+10.0,41.0
+11.0,31.0
+12.0,32.0
+13.0,22.0
+14.0,7.0
+15.0,51.0
+16.0,106.0
+17.0,18.0
+18.0,72.0
+19.0,37.0
+20.0,38.0
+21.0,144.0
+22.0,29.0
+23.0,36.0
+24.0,54.0
+25.0,57.0
+26.0,65.0
+27.0,7.0
+28.0,14.0
+29.0,72.0
+30.0,25.0
+31.0,4.0
+32.0,5.0
 33.0,7.0
 34.0,3.0
-35.0,0.0
+35.0,1.0
 36.0,5.0
+37.0,0.0
+38.0,3.0
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.352,0.0
-20.352,137.0
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">20.437,0.0
+20.437,144.0
 					</series>
-					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=28
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=1, bucket count=30
 Runs: 1000 in total, 1000 (100%) displayed, 0 (0%) remaining
-Span of displayed sample: [9, 36]
-Mean estimate of displayed sample: 20.352 ± 0.36975 (95% CI)</comment>
+Span of displayed sample: [9, 38]
+Mean estimate of displayed sample: 20.437 ± 0.36828 (95% CI)</comment>
 				</plot>
 			</result>
 		</query>
