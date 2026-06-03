@@ -68,8 +68,8 @@ const int V = 1; // vehicle-covered cell
 const int L = 1; // log-supported cell
 const int T = 1; // turtle-supported cell
 const int D = 2; // diving-turtle-supported cell
-const int X = 1; // wall between home bays
-const int H = 0; // valid home-bay cell
+const int X = 3; // wall between home bays
+const int H = 4; // valid home-bay cell
 
 /*
  * Diving-turtle phase durations.
@@ -111,7 +111,7 @@ typedef int[0, GRID_H - 1] PosY;
 typedef int[0, FROG_MAX_LIVES] Lives;
 typedef int[0, MAX_SCORE] Score;
 typedef int[-1, 1] Direction;
-typedef int[0, 2] Cell;
+typedef int[0, 4] Cell;
 
 // ------------------------------ Lane structure ------------------------------
 
@@ -169,7 +169,7 @@ PosX frog_x = FROG_SPAWN_X;
 PosY frog_y = FROG_SPAWN_Y;
 
 int[0, MAX_LEVEL_TIME] level_time = MAX_LEVEL_TIME;
-meta Score score = 0;
+Score score = 0;
 
 /*
  * Shared dynamic flags.
@@ -184,6 +184,7 @@ bool diving_turtles_are_submerged = false;
 bool home_bay_occupied[HOME_BAYS] = {false, false, false, false, false};
 
 bool frog_on_diving_turtle = false;
+
 // ------------------------------ Home-bay utilities ------------------------------
 
 /*
@@ -327,10 +328,11 @@ Lives lives = FROG_MAX_LIVES;
  * Restores Frogger to the spawn cell only.
  * Score, lives, lane shifts, and occupied home bays are intentionally unchanged.
  */
-void respawn() {
+void reset() {
     frog_x = FROG_SPAWN_X;
     frog_y = FROG_SPAWN_Y;
-    frog_on_diving_turtles = false;
+    frog_on_diving_turtle = false;
+    timer = 0;
 }
 
 /*
@@ -347,11 +349,6 @@ void load_next_level() {
     level_time = (level_time - TIME_DECREMENT_PER_LEVEL) &gt; 0 ? level_time - TIME_DECREMENT_PER_LEVEL : 0;
 }
 
-void reset_after_move() {
-    frog_on_diving_turtles = false;
-    tick=0;
-}
-
 /*
  * Handles arrival in a free home bay.
  * The bay is marked, points are awarded, and Frogger is respawned.
@@ -361,7 +358,7 @@ void reach_home_bay() {
     add_score(HOME_BAY_SCORE);
     set_current_home_bay_as_occupied();
     if (all_home_bays_occupied()) load_next_level();
-    respawn();
+    reset();
 }
 
 
@@ -371,20 +368,7 @@ void reach_home_bay() {
  * Checks whether Frogger is on the home row.
  */
 bool on_finish_lane() {
-    return frog_y == GRID_H - 1;
-}
-
-/*
- * Resolves Frogger's state after entering the home row.
- * Walls and already occupied bays cause death; free home bays trigger scoring
- * and occupation.
- */
-void kill_or_reach_home_bay() {
-    if (LANE_STRUCTURES[frog_y][frog_x] == X || is_current_home_bay_occupied()) {
-        handle_frog_death();
-    } else {
-        reach_home_bay();
-    }
+    return ((frog_y == GRID_H - 1) &amp;&amp; (LANE_STRUCTURES[frog_y][frog_x] == H));
 }
 
 /*
@@ -397,7 +381,7 @@ void kill_or_reach_home_bay() {
  *   Frogger's row.
  */
 bool can_move() {
-    return !(frog_y + 1 &gt;= GRID_H || frog_x &lt; 0 || frog_x &gt;= GRID_W);
+    return !(frog_x &lt; 0 || frog_x &gt;= GRID_W) &amp;&amp; !(LANE_STRUCTURES[frog_y+1][frog_x] == X || ((LANE_STRUCTURES[frog_y+1][frog_x] == H &amp;&amp; is_current_home_bay_occupied())));
 }
 
 /*
@@ -406,73 +390,89 @@ bool can_move() {
 void move() {
     frog_y = frog_y + 1;
     add_score(MOVE_UP_SCORE);
-}</declaration>
+}
+</declaration>
 		<location id="id0" x="-3221" y="-3162">
-			<name x="-3238" y="-3145">Idle</name>
+			<name x="-3272" y="-3170">Idle</name>
+			<label kind="invariant" x="-3400" y="-3153">timer &lt;= level_time</label>
 		</location>
-		<location id="id1" x="-3561" y="-3162">
-			<name x="-3612" y="-3171">Move</name>
+		<location id="id1" x="-3604" y="-3153">
+			<name x="-3655" y="-3162">Move</name>
 			<committed/>
 		</location>
-		<location id="id2" x="-2890" y="-3162">
-			<name x="-2890" y="-3153">Dead</name>
-			<label kind="invariant" x="-2898" y="-3136">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+		<location id="id2" x="-2856" y="-3162">
+			<name x="-2847" y="-3153">Dead</name>
+			<committed/>
 		</location>
-		<location id="id3" x="-2678" y="-3162">
-			<name x="-2712" y="-3196">GameOver</name>
+		<location id="id3" x="-2856" y="-3009">
+			<name x="-2890" y="-2992">GameOver</name>
 		</location>
-		<init ref="id2"/>
-		<transition id="id4">
-			<source ref="id1"/>
-			<target ref="id2"/>
-			<label kind="guard" x="-3502" y="-3043">on_finish_lane()</label>
-			<label kind="assignment" x="-3502" y="-3026">tick = 0, kill_or_reach_home_bay(), reset_after_move()</label>
-			<nail x="-3519" y="-3043"/>
-			<nail x="-2941" y="-3042"/>
-		</transition>
+		<location id="id4" x="-2601" y="-3162">
+			<name x="-2584" y="-3170">Respawn</name>
+			<label kind="invariant" x="-2711" y="-3145">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+		</location>
+		<init ref="id4"/>
 		<transition id="id5">
-			<source ref="id0"/>
-			<target ref="id2"/>
-			<label kind="guard" x="-3128" y="-3203">timer &gt;= level_time</label>
-			<label kind="assignment" x="-3128" y="-3186">tick = 0, lives--</label>
-		</transition>
-		<transition id="id6">
 			<source ref="id2"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-2848" y="-3187">lives &lt;= 0</label>
+			<label kind="guard" x="-2847" y="-3094">lives &lt;= 0</label>
+			<label kind="assignment" x="-2847" y="-3077">reset()</label>
+		</transition>
+		<transition id="id6">
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-3119" y="-3247">timer &gt;= level_time</label>
+			<label kind="assignment" x="-3111" y="-3230">tick = 0, lives--</label>
+			<nail x="-3145" y="-3204"/>
+			<nail x="-2941" y="-3204"/>
+			<nail x="-2932" y="-3204"/>
 		</transition>
 		<transition id="id7">
 			<source ref="id2"/>
-			<target ref="id0"/>
-			<label kind="guard" x="-3128" y="-3271">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN) &amp;&amp; lives &gt;= 1</label>
-			<label kind="assignment" x="-3128" y="-3254">tick = 0, respawn()</label>
-			<nail x="-2949" y="-3229"/>
-			<nail x="-3145" y="-3228"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-2796" y="-3187">lives &gt;= 1</label>
+			<label kind="assignment" x="-2788" y="-3162">reset()</label>
 		</transition>
 		<transition id="id8">
+			<source ref="id1"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-3238" y="-3391">on_finish_lane()</label>
+			<label kind="assignment" x="-3281" y="-3366">tick = 0, reach_home_bay()</label>
+			<nail x="-3570" y="-3366"/>
+			<nail x="-2660" y="-3366"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id4"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-3136" y="-3323">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+			<label kind="assignment" x="-3034" y="-3306">tick = 0</label>
+			<nail x="-2711" y="-3281"/>
+			<nail x="-3145" y="-3281"/>
+		</transition>
+		<transition id="id10">
 			<source ref="id0"/>
 			<target ref="id2"/>
 			<label kind="synchronisation" x="-3128" y="-3110">kill_frog?</label>
 			<label kind="assignment" x="-3128" y="-3094">tick = 0, lives--</label>
-			<nail x="-3136" y="-3110"/>
-			<nail x="-2949" y="-3110"/>
+			<nail x="-3136" y="-3119"/>
+			<nail x="-2949" y="-3119"/>
 		</transition>
-		<transition id="id9">
+		<transition id="id11">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3510" y="-3179">!on_finish_lane()</label>
-			<label kind="synchronisation" x="-3510" y="-3162">frog_moved!</label>
-			<label kind="assignment" x="-3510" y="-3145">tick = 0, reset_after_move()</label>
-			<nail x="-3518" y="-3119"/>
-			<nail x="-3272" y="-3119"/>
+			<label kind="guard" x="-3502" y="-3136">!on_finish_lane()</label>
+			<label kind="synchronisation" x="-3502" y="-3119">frog_moved!</label>
+			<label kind="assignment" x="-3570" y="-3102">tick = 0,frog_on_diving_turtle = false</label>
+			<nail x="-3578" y="-3077"/>
+			<nail x="-3238" y="-3077"/>
 		</transition>
-		<transition id="id10">
+		<transition id="id12">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="guard" x="-3510" y="-3238">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
-			<label kind="assignment" x="-3510" y="-3221">move()</label>
-			<nail x="-3272" y="-3196"/>
-			<nail x="-3519" y="-3197"/>
+			<label kind="guard" x="-3544" y="-3238">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
+			<label kind="assignment" x="-3451" y="-3204">move()</label>
+			<nail x="-3247" y="-3213"/>
+			<nail x="-3578" y="-3213"/>
 		</transition>
 	</template>
 	<template>
@@ -485,12 +485,13 @@ void move() {
 
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
+const int row = lane_y;
 
 // ------------------------------ Local state ------------------------------
 
 clock tick;
 PosX shift = 0;
-
+int[-1,1] a=-1;
 // ------------------------------ Lane movement ------------------------------
 
 /*
@@ -510,42 +511,43 @@ void move_lane() {
  */
 bool collision() {
     return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
-}</declaration>
-		<location id="id11" x="-195" y="-51">
+}
+</declaration>
+		<location id="id13" x="-195" y="-51">
 			<name x="-246" y="-59">Wait</name>
 			<label kind="invariant" x="-323" y="-42">tick &lt;= speed</label>
 		</location>
-		<location id="id12" x="229" y="-51">
+		<location id="id14" x="229" y="-51">
 			<name x="246" y="-59">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id11"/>
-		<transition id="id13">
-			<source ref="id12"/>
-			<target ref="id11"/>
+		<init ref="id13"/>
+		<transition id="id15">
+			<source ref="id14"/>
+			<target ref="id13"/>
 			<label kind="guard" x="-110" y="8">frog_y != lane_y || !collision()</label>
 			<nail x="153" y="8"/>
 			<nail x="-119" y="8"/>
 		</transition>
-		<transition id="id14">
-			<source ref="id11"/>
-			<target ref="id12"/>
+		<transition id="id16">
+			<source ref="id13"/>
+			<target ref="id14"/>
 			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
 			<nail x="-119" y="-110"/>
 			<nail x="153" y="-110"/>
 		</transition>
-		<transition id="id15">
-			<source ref="id12"/>
-			<target ref="id11"/>
+		<transition id="id17">
+			<source ref="id14"/>
+			<target ref="id13"/>
 			<label kind="guard" x="-110" y="85">frog_y == lane_y &amp;&amp; collision()</label>
 			<label kind="synchronisation" x="-110" y="102">kill_frog!</label>
 			<nail x="170" y="85"/>
 			<nail x="-144" y="85"/>
 		</transition>
-		<transition id="id16">
-			<source ref="id11"/>
-			<target ref="id12"/>
+		<transition id="id18">
+			<source ref="id13"/>
+			<target ref="id14"/>
 			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
 			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
 			<nail x="-144" y="-187"/>
@@ -609,51 +611,51 @@ void check_frog_on_diving_turtle() {
     int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
     frog_on_diving_turtle = (cell == D);
 }</declaration>
-		<location id="id17" x="-6358" y="-5788">
+		<location id="id19" x="-6358" y="-5788">
 			<name x="-6400" y="-5780">Wait</name>
 			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
 		</location>
-		<location id="id18" x="-5950" y="-5788">
+		<location id="id20" x="-5950" y="-5788">
 			<name x="-5933" y="-5796">CheckFrog</name>
 			<committed/>
 		</location>
-		<init ref="id17"/>
-		<transition id="id19">
-			<source ref="id17"/>
-			<target ref="id17"/>
+		<init ref="id19"/>
+		<transition id="id21">
+			<source ref="id19"/>
+			<target ref="id19"/>
 			<label kind="guard" x="-6579" y="-5856">tick &gt;= speed</label>
 			<label kind="assignment" x="-6647" y="-5839">move_lane(), tick = 0</label>
 			<nail x="-6460" y="-5788"/>
 			<nail x="-6460" y="-5865"/>
 			<nail x="-6358" y="-5865"/>
 		</transition>
-		<transition id="id20">
-			<source ref="id18"/>
-			<target ref="id17"/>
+		<transition id="id22">
+			<source ref="id20"/>
+			<target ref="id19"/>
 			<label kind="guard" x="-6273" y="-5763">!drowning()</label>
 			<label kind="assignment" x="-6273" y="-5746">check_frog_on_diving_turtle()</label>
 			<nail x="-6010" y="-5728"/>
 			<nail x="-6282" y="-5728"/>
 		</transition>
-		<transition id="id21">
-			<source ref="id17"/>
-			<target ref="id18"/>
+		<transition id="id23">
+			<source ref="id19"/>
+			<target ref="id20"/>
 			<label kind="guard" x="-6273" y="-5890">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5873">frog_moved?</label>
 			<nail x="-6282" y="-5847"/>
 			<nail x="-6010" y="-5847"/>
 		</transition>
-		<transition id="id22">
-			<source ref="id18"/>
-			<target ref="id17"/>
+		<transition id="id24">
+			<source ref="id20"/>
+			<target ref="id19"/>
 			<label kind="guard" x="-6273" y="-5653">drowning()</label>
 			<label kind="synchronisation" x="-6273" y="-5635">kill_frog!</label>
 			<nail x="-5993" y="-5652"/>
 			<nail x="-6299" y="-5653"/>
 		</transition>
-		<transition id="id23">
-			<source ref="id17"/>
-			<target ref="id18"/>
+		<transition id="id25">
+			<source ref="id19"/>
+			<target ref="id20"/>
 			<label kind="guard" x="-6273" y="-5967">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6273" y="-5950">diving_turtles_submerged?</label>
 			<nail x="-6299" y="-5924"/>
@@ -669,48 +671,48 @@ void check_frog_on_diving_turtle() {
 // Only the submerged phase disables D support in floating-lane safety checks.
 
 clock tick;</declaration>
-		<location id="id24" x="-781" y="-162">
+		<location id="id26" x="-781" y="-162">
 			<name x="-806" y="-145">Emerged</name>
 			<label kind="invariant" x="-806" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id25" x="-782" y="-450">
+		<location id="id27" x="-782" y="-450">
 			<name x="-824" y="-484">Submerged</name>
 			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 		</location>
-		<location id="id26" x="-637" y="-297">
+		<location id="id28" x="-637" y="-297">
 			<name x="-620" y="-305">Diving</name>
 			<label kind="invariant" x="-620" y="-289">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<location id="id27" x="-943" y="-298">
+		<location id="id29" x="-943" y="-298">
 			<name x="-1028" y="-314">Emerging</name>
 			<label kind="invariant" x="-1333" y="-298">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 		</location>
-		<init ref="id24"/>
-		<transition id="id28">
-			<source ref="id27"/>
-			<target ref="id24"/>
+		<init ref="id26"/>
+		<transition id="id30">
+			<source ref="id29"/>
+			<target ref="id26"/>
 			<label kind="guard" x="-1325" y="-222">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="assignment" x="-1020" y="-205">tick = 0</label>
 			<nail x="-943" y="-163"/>
 		</transition>
-		<transition id="id29">
-			<source ref="id25"/>
-			<target ref="id27"/>
+		<transition id="id31">
+			<source ref="id27"/>
+			<target ref="id29"/>
 			<label kind="guard" x="-1291" y="-426">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-1343" y="-408">diving_turtles_are_submerged = false, tick = 0</label>
 			<nail x="-943" y="-451"/>
 		</transition>
-		<transition id="id30">
-			<source ref="id26"/>
-			<target ref="id25"/>
+		<transition id="id32">
+			<source ref="id28"/>
+			<target ref="id27"/>
 			<label kind="guard" x="-628" y="-425">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
 			<label kind="synchronisation" x="-628" y="-409">diving_turtles_submerged!</label>
 			<label kind="assignment" x="-629" y="-391">diving_turtles_are_submerged = true, tick = 0</label>
 			<nail x="-637" y="-451"/>
 		</transition>
-		<transition id="id31">
-			<source ref="id24"/>
-			<target ref="id26"/>
+		<transition id="id33">
+			<source ref="id26"/>
+			<target ref="id28"/>
 			<label kind="guard" x="-628" y="-222">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
 			<label kind="assignment" x="-628" y="-205">tick = 0</label>
 			<nail x="-637" y="-163"/>
@@ -729,16 +731,18 @@ L9 = FloatingLane(9);
 L10 = FloatingLane(10);
 L11 = FloatingLane(11);
 
-DTC = DivingTurtleCycle()
+DTC = DivingTurtleCycle();
 
 F = Frogger();
 
 system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
+		<option key="--diagnostic" value="0"/>
 		<query>
-			<formula>E&lt;&gt; (home_bay_occupied[0] == true)</formula>
+			<formula>E&lt;&gt;(F.Dead &amp;&amp; frog_on_diving_turtle==true)</formula>
 			<comment/>
-			<result outcome="failure" type="quality" timestamp="2026-05-16 15:44:16 +0200">
+			<result outcome="success" type="quality" timestamp="2026-06-03 14:08:56 +0200">
+				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 	</queries>
