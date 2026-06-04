@@ -1,0 +1,1039 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta>
+	<declaration>// ============================= GLOBAL DECLARATIONS =============================
+// Model parameters, shared state, and utility functions used by all templates.
+
+
+// ------------------------------ Grid and timing ------------------------------
+
+/*
+ * Visible map and logical lane dimensions.
+ * GRID_W and GRID_H are the visible Frogger grid.
+ * LANE_W adds two off-screen cells to model the required re-entry delay of
+ * moving objects after they leave the visible map.
+ */
+const int GRID_W = 18;
+const int GRID_H = 13;
+const int LANE_W = 20;
+
+/*
+ * Frogger spawn position.
+ * Frogger is restored here after death, timeout, or successful home-bay arrival.
+ */
+const int FROG_SPAWN_X = 9;
+const int FROG_SPAWN_Y = 0;
+
+/*
+ * Game timing and score bounds.
+ * One Uppaal time unit represents 0.1 seconds.
+ *
+ * RESPAWN_TIME is 19 because the model also requires one additional
+ * MOVE_COOLDOWN unit before Frogger can move again, giving 20 units in total
+ * after a repositioning.
+ */
+const int FROG_MAX_LIVES = 5;
+const int MAX_SCORE = 4500;
+
+const int MAX_LEVEL_TIME = 30 * 10;           // 30 seconds * 10 ticks/seconds = 300 ticks
+const int TIME_DECREMENT_PER_LEVEL = 2 * 10;  // 2 seconds * 10 ticks/seconds = 20 ticks
+const int RESPAWN_TIME = 2 * 10;              // 2 seconds * 10 ticks/seconds = 20 ticks
+const int MOVE_COOLDOWN = 1;                  // 1 tick
+
+const int MAX_LEVELS = MAX_LEVEL_TIME/TIME_DECREMENT_PER_LEVEL;
+
+
+// ------------------------------ Bounded types ------------------------------
+
+/*
+ * Bounded integer types keep the symbolic state space finite.
+ * PosX ranges over the logical lane width, including the two off-screen cells.
+ */
+typedef int[0, LANE_W - 1] PosX;
+typedef int[0, GRID_H - 1] PosY;
+typedef int[0, FROG_MAX_LIVES] Lives;
+typedef int[0, MAX_SCORE] Score;
+typedef int[-1, 1] Direction;
+typedef int[0, 7] Cell;
+
+
+const Direction UP = 1;
+const Direction DOWN = -1;
+const Direction RIGHT = 1;
+const Direction LEFT = -1;
+const Direction SAME = 0;
+
+
+/*
+ * Logical cell encoding used inside LANE_STRUCTURES.
+ *
+ * The same numeric values are intentionally reused in different contexts:
+ *   0 means "no obstacle/support" in moving lanes, and also represents safe
+ *     static cells or valid home cells when the row semantics already disambiguate.
+ *   1 means "blocking/supporting object", depending on the lane type.
+ *   2 identifies diving-turtle support, which becomes unsafe only while the
+ *     diving-turtle cycle is in the submerged phase.
+ *
+ * For this reason, these constants should be interpreted together with the row
+ * being checked, not as globally unique terrain identifiers.
+ */
+const Cell S = 0; // safe/static street cell
+const Cell W = 1; // water cell without floating support
+const Cell V = 2; // vehicle-covered cell
+const Cell L = 3; // log-supported cell
+const Cell T = 4; // turtle-supported cell
+const Cell D = 5; // diving-turtle-supported cell
+const Cell X = 6; // wall between home bays
+const Cell H = 7; // valid home-bay cell
+
+/*
+ * Diving-turtle phase durations.
+ * Stable phases are emerged and submerged; transition phases are diving and
+ * emerging.
+ */
+const int DIVING_TURTLE_TRANSITION_STATE_TIMER = 5;
+const int DIVING_TURTLE_STABLE_STATE_TIMER = 10;
+
+/*
+ * Home-bay layout.
+ * Each home bay occupies two cells and bays start every four x-coordinates:
+ *   bay 0: x = 0, 1
+ *   bay 1: x = 4, 5
+ *   bay 2: x = 8, 9
+ *   bay 3: x = 12, 13
+ *   bay 4: x = 16, 17
+ */
+const int HOME_BAYS = 5;
+const int HOME_BAY_SPACING = 4;
+
+// ------------------------------ Scoring ------------------------------
+
+/*
+ * Score increments directly derived from the game rules.
+ */
+const int MOVE_UP_SCORE = 1;
+const int HOME_BAY_SCORE = 5;
+const int LEVEL_COMPLETE_SCORE = 100;
+
+
+// ------------------------------ Lane structure ------------------------------
+
+/*
+ * Initial logical content of each lane.
+ *
+ * The matrix is fixed: moving objects are not physically rewritten in the array.
+ * Their motion is represented by the per-lane shift variable inside lane templates.
+ *
+ * Turtle groups are encoded as continuous support intervals, including the
+ * water gaps between turtles of the same group. This abstracts the rule allowing
+ * Frogger to stand between nearby turtles. Diving-turtle groups use D over the
+ * whole group interval, so the whole support interval disappears while submerged.
+ */
+const Cell LANE_STRUCTURES[GRID_H][LANE_W] = {
+    {S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S}, /// lane 0  - start lane
+    {S,S,S,S,V,S,S,S,S,S,S,S,S,S,V,S,S,S,S,S}, // lane 1  - orange cars
+    {S,S,V,S,S,S,S,S,S,S,S,V,S,S,S,S,S,S,S,S}, // lane 2  - bulldozers
+    {S,S,S,V,S,S,S,S,V,S,S,S,S,V,S,S,S,V,S,S}, // lane 3  - green cars
+    {S,S,V,S,S,S,S,S,S,S,V,S,S,S,S,S,S,S,S,S}, // lane 4  - purple cars
+    {S,S,S,V,V,S,S,S,S,S,S,S,S,S,V,V,S,S,S,S}, // lane 5  - trucks
+    {S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S}, /// lane 6  - safe median
+    {W,W,W,W,W,T,T,T,T,T,W,W,W,D,D,D,D,D,W,W}, // lane 7  - turtles/diving turtles
+    {W,W,W,W,W,W,W,L,L,L,W,L,L,L,W,L,L,L,W,W}, // lane 8  - logs
+    {W,W,L,L,L,L,L,L,L,L,L,W,W,W,W,W,W,W,W,W}, // lane 9  - long log
+    {W,T,T,T,W,W,W,W,W,D,D,D,W,W,W,W,W,W,W,W}, // lane 10 - turtles/diving turtles
+    {W,L,L,L,L,L,W,W,W,L,L,L,L,L,W,W,W,W,W,W}, // lane 11 - logs
+    {H,H,X,X,H,H,X,X,H,H,X,X,H,H,X,X,H,H,X,X}  /// lane 12 - home bays
+};
+
+/*
+ * Per-lane movement periods.
+ * Static lanes have speed 0 and should not be instantiated as moving lanes.
+ */
+const int lane_speed_array[GRID_H] = {0, 3, 10, 5, 4, 7, 0, 6, 2, 7, 2, 2, 0};
+
+/*
+ * Per-lane movement directions.
+ * RIGHT means increasing x; LEFT means decreasing x; 0 marks static lanes.
+ */
+const Direction lane_direction_array[GRID_H] = {
+    0, LEFT, RIGHT, LEFT, RIGHT, LEFT, 0, RIGHT, RIGHT, LEFT, RIGHT, LEFT, 0
+};
+
+// ------------------------------ Global state ------------------------------
+
+clock timer;
+
+/*
+ * Frogger state.
+ * frog_x ranges over LANE_W, so Frogger can also be carried into the two
+ * off-screen cells while riding a floating object.
+ */
+PosX frog_x = FROG_SPAWN_X;
+PosY frog_y = FROG_SPAWN_Y;
+
+PosX lane_shift_array[GRID_H] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+int[0,MAX_LEVELS] level = 0;
+Score score = 0;
+
+clock global_time;
+
+int up = 0;
+int down = 0;
+int right = 0;
+int left = 0;
+
+
+/*
+ * Shared dynamic flags.
+ *
+ * diving_turtles_are_submerged is global because all diving turtles start in
+ * the same phase and follow the same deterministic cycle in this abstraction.
+ *
+ * home_bay_occupied stores whether each of the five home bays has already been
+ * reached.
+ */
+bool diving_turtles_are_submerged = false;
+bool diving_turtles_are_submerging = false;
+bool home_bay_occupied[HOME_BAYS] = {false, false, false, false, false};
+bool frog_on_diving_turtle = false;
+
+// ------------------------------ Home-bay utilities ------------------------------
+
+
+/*
+ * Clears all home-bay occupation flags.
+ */
+void clear_home_bays() {
+    int i;
+    for (i = 0; i &lt; HOME_BAYS; i++) {
+        home_bay_occupied[i] = false;
+    }
+}
+
+/*
+ * Checks whether the home bay corresponding to the x-coordinate of Frogger
+ * has already been reached and occupied.
+ *
+ * The home row is organized as five groups of four cells:
+ *
+ *   H H X X | H H X X | H H X X | H H X X | H H
+ *
+ * Therefore, each home bay starts every HOME_BAY_SPACING (in this case 4) cells:
+ *
+ *   bay 0 -&gt; x = 0, 1
+ *   bay 1 -&gt; x = 4, 5
+ *   bay 2 -&gt; x = 8, 9
+ *   bay 3 -&gt; x = 12, 13
+ *   bay 4 -&gt; x = 16, 17
+ *
+ * Since both cells of the same home bay belong to the same block of size
+ * HOME_BAY_SPACING, integer division maps them to the correct bay index:
+ *
+ *   0 / 4 = 0,  1 / 4 = 0
+ *   4 / 4 = 1,  5 / 4 = 1
+ *   8 / 4 = 2,  9 / 4 = 2
+ *   12 / 4 = 3, 13 / 4 = 3
+ *   16 / 4 = 4, 17 / 4 = 4
+ *
+ * Precondition:
+ *   This function should only be called after verifying that the frog
+ *   x-coordinate is an H cell. Wall cells such as x = 2 or x = 3 would also map
+ *   to bay 0, but they are not valid home bay cells.
+ *
+ * Returns:
+ *   true if the home bay has already been occupied, false otherwise.
+ */
+bool is_current_home_bay_occupied() {
+    return home_bay_occupied[frog_x / HOME_BAY_SPACING];
+}
+
+/*
+ * Marks Frogger's current home bay as occupied.
+ * The same /4 mapping used above converts the x-coordinate into the bay index.
+ */
+void set_current_home_bay_as_occupied() {
+    home_bay_occupied[frog_x / HOME_BAY_SPACING] = true;
+}
+
+/*
+ * Returns true exactly when all five home bays are occupied.
+ */
+bool all_home_bays_occupied() {
+    int[0, HOME_BAYS] i;
+    for (i = 0; i &lt; HOME_BAYS; i++) {
+        if (!home_bay_occupied[i]) return false;
+    }
+    return true;
+}
+
+// ------------------------------ Score utility ------------------------------
+
+/*
+ * Adds points to the score with saturation at MAX_SCORE.
+ */
+void add_score(int points) {
+    score = (score + points &gt; MAX_SCORE) ? MAX_SCORE : score + points;
+}
+
+
+// ------------------------------ Synchronisation channels ------------------------------
+
+/*
+ * Requests the death of Frogger.
+ *
+ * Sent by:
+ *   - VehicleLane, when a vehicle overlaps Frogger.
+ *   - FloatingLane, when Frogger is on unsafe water or on a submerged diving-turtle group.
+ *
+ * Received by:
+ *   - Frog, which consumes the event and applies the death routine:
+ *     one life is removed and Frogger is respawned.
+ *
+ * The channel is not broadcast because death is handled by a single controller:
+ * only the Frog automaton must react to it.
+ */
+broadcast chan kill_frog;
+
+/*
+ * Announces that Frogger has completed a movement step.
+ *
+ * Sent by:
+ *   - Frog, immediately after executing its move.
+ *
+ * Received by:
+ *   - VehicleLane templates, to re-check whether the new Frogger position
+ *     overlaps a vehicle.
+ *   - FloatingLane templates, to re-check whether the new Frogger position
+ *     is supported by a floating object or is unsafe.
+ *
+ * The channel is broadcast because several lane automata may need to observe
+ * the same movement event, while Frogger must not wait for a specific receiver.
+ */
+broadcast chan frog_moved;
+
+/*
+ * Announces that diving turtles have entered the submerged phase.
+ *
+ * Sent by:
+ *   - DivingTurtleCycle, when the global diving-turtle state becomes submerged.
+ *
+ * Received by:
+ *   - FloatingLane templates containing diving turtles, to detect whether
+ *     Frogger is currently standing on a submerged diving turtle.
+ *
+ * The channel is broadcast because the diving phase is global and potentially
+ * relevant to more than one river lane.
+ */
+broadcast chan diving_turtles_submerged;</declaration>
+	<template>
+		<name x="5" y="5">Frogger</name>
+		<declaration>// ============================== FROG DECLARATIONS ==============================
+// Local timing and actions for the symbolic Frogger controller.
+
+// ------------------------------ Local Variables --------------------------------
+clock tick;
+
+// ------------------------------ Bounded types ------------------------------
+
+Lives lives = FROG_MAX_LIVES;
+
+// ------------------------------ Local Utilities --------------------------------
+
+/*
+ * Restores Frogger to the spawn cell only.
+ * Score, lives, lane shifts, and occupied home bays are intentionally unchanged.
+ */
+void reset_frog() {
+    frog_x = FROG_SPAWN_X;
+    frog_y = FROG_SPAWN_Y;
+    frog_on_diving_turtle = false;
+    timer = 0;
+}
+
+
+int get_level_time() {
+    int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * level);
+    return level_time &gt; 0 ? level_time : 0;
+}
+
+/*
+ * Starts the next level according to the full game mechanics:
+ * awards the level-completion bonus, clears home bays, and reduces the timeout.
+ *
+ * Possible issue:
+ *   The Symbolic version requires playing only the first level. This function
+ *   keeps the multi-level rule active instead of stopping after level completion.
+ */
+void load_next_level() {
+    add_score(LEVEL_COMPLETE_SCORE);
+    clear_home_bays();
+    level = (level + 1 &gt; MAX_LEVELS) ? level : level + 1;
+}
+
+/*
+ * Handles arrival in a free home bay.
+ * The bay is marked, points are awarded, and Frogger is respawned.
+ * If this was the fifth occupied bay, the next-level routine is triggered.
+ */
+void reach_home_bay() {
+    add_score(HOME_BAY_SCORE);
+    set_current_home_bay_as_occupied();
+    if (all_home_bays_occupied()) load_next_level();
+    reset_frog();
+}
+
+
+// ------------------------------ Transition called functions --------------------------------
+
+
+/*
+ * Checks whether Frogger is on the home row.
+ */
+bool on_home_bay() {
+    return LANE_STRUCTURES[frog_y][frog_x] == H;
+}
+
+
+/*
+ * Attempts to move Frogger by the given displacement.
+ *
+ * Input:
+ *   dx - horizontal displacement.
+ *   dy - vertical displacement.
+ *
+ * Effect:
+ *   The move is ignored if it exits the visible grid, or it is tryng
+ *   to move while outside the grid. Otherwise Frogger is moved and gains one point
+ *   if the movement direction is UP.
+ */
+void move_frog(Direction dx, Direction dy) {
+
+    // check if frog is trying to move while outside the map
+    if (frog_x &lt; 0 || frog_x &gt;= GRID_W) return;
+
+    // check if frog is trying exit the map
+    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) {return;}
+
+    // check if frog can move into the desired cell
+    if (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == X || (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == H &amp;&amp; is_current_home_bay_occupied())) return;
+
+    // update frog position
+    frog_x = frog_x + dx;
+    frog_y = frog_y + dy;
+
+    // score update
+    if (dy == UP) add_score(MOVE_UP_SCORE);
+
+}
+
+
+// ------------------------------ Advanced Probability Weights for Frogger Movement ------------------------------
+
+int distance_from_nearest_free_home_bay(int x) {
+    int i;
+    int min_dist = LANE_W; // Inizializziamo alla massima distanza possibile (20)
+    
+    // Se tutte le tane sono occupate, non c'è nessuna distanza da calcolare
+    if (all_home_bays_occupied()) return -1;
+
+    for (i = 0; i &lt; HOME_BAYS; i++) {
+        if (!home_bay_occupied[i]) {
+            int target1, target2, diff1, diff2, dist1, dist2, bay_min_dist;
+            
+            // Le due celle valide per questa specifica tana
+            target1 = i * HOME_BAY_SPACING;
+            target2 = target1 + 1;
+            
+            // 1. Calcolo della distanza lineare (valore assoluto)
+            diff1 = x &gt; target1 ? x - target1 : target1 - x;
+            diff2 = x &gt; target2 ? x - target2 : target2 - x;
+            
+            // 2. Applicazione dell'effetto "Pac-Man" (Wrap-around)
+            // La distanza reale è il minimo tra la distanza lineare e il giro al contrario (LANE_W - distanza)
+            dist1 = diff1 &lt; (LANE_W - diff1) ? diff1 : (LANE_W - diff1);
+            dist2 = diff2 &lt; (LANE_W - diff2) ? diff2 : (LANE_W - diff2);
+            
+            // 3. Troviamo la cella più vicina di QUESTA tana
+            bay_min_dist = dist1 &lt; dist2 ? dist1 : dist2;
+            
+            // 4. Aggiorniamo la distanza minima globale trovata finora
+            if (bay_min_dist &lt; min_dist) {
+                min_dist = bay_min_dist;
+            }
+        }
+    }
+    
+    return min_dist;
+}
+
+
+// Funzione helper aggiornata con la preveggenza sulle tartarughe
+bool is_safe_float(Cell c) {
+    return c == L || c == T || (c == D &amp;&amp; !diving_turtles_are_submerged &amp;&amp; !diving_turtles_are_submerging);
+}
+
+// Ritorna RIGHT/LEFT verso il floating object più vicino su frog_y+1,
+// SAME se già allineato o non applicabile (road, home row)
+Direction safe_above_direction() {
+    int i;
+    PosY row;
+    bool r_safe;
+    bool l_safe;
+    
+    if (frog_y &lt; 6 || frog_y &gt;= 11) return SAME;
+    row = frog_y + 1;
+    
+    // Usiamo 3 * LANE_W per evitare bug con array a indice negativo in UPPAAL
+    if (is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x - lane_shift_array[row]) % LANE_W])) return SAME;
+    
+    // Basta cercare fino a LANE_W / 2 (distanza massima su mappa toroidale)
+    for (i = 1; i &lt;= LANE_W / 2; i++) {
+        r_safe = is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x + i - lane_shift_array[row]) % LANE_W]);
+        l_safe = is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x - i - lane_shift_array[row]) % LANE_W]);
+        
+        if ( r_safe &amp;&amp; !l_safe) return RIGHT;
+        if (!r_safe &amp;&amp;  l_safe) return LEFT;
+        if ( r_safe &amp;&amp;  l_safe) {
+            // Pareggio: tie-break con home bay (usa la funzione che avevamo fatto!)
+            return (distance_from_nearest_free_home_bay(frog_x+1) &lt; distance_from_nearest_free_home_bay(frog_x-1)) ? RIGHT : LEFT;
+        }
+    }
+    return SAME;
+}
+
+// --------------------------------------------------------
+
+int[0,5] prob(Direction dx, Direction dy) {
+    int next_frog_x  = frog_x + dx;
+    int next_frog_y  = frog_y + dy;
+    int dist_next    = 0;
+    int dist_curr    = 0;
+    bool carried     = false;
+    bool toward_home = false;
+    bool toward_safe = false;
+    Direction safe_dir = SAME;
+
+    // ── Hard blocks ───────────────────────────────────────────
+    if (frog_x &lt; 0 || frog_x &gt;= GRID_W) return 0;
+    if (next_frog_x &lt; 0 || next_frog_x &gt;= GRID_W || next_frog_y &lt; 0 || next_frog_y &gt;= GRID_H) return 0;
+    if (LANE_STRUCTURES[next_frog_y][next_frog_x] == X) return 0;
+    if (LANE_STRUCTURES[next_frog_y][next_frog_x] == H &amp;&amp; is_current_home_bay_occupied()) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == V) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == W) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == D &amp;&amp; diving_turtles_are_submerged) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(2*LANE_W + next_frog_x - lane_direction_array[next_frog_y]   - lane_shift_array[next_frog_y]) % LANE_W] == V) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(2*LANE_W + next_frog_x - 2*lane_direction_array[next_frog_y] - lane_shift_array[next_frog_y]) % LANE_W] == V) return 0;
+    if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == D &amp;&amp; diving_turtles_are_submerging) return 0;
+
+    // ── Soft weights ──────────────────────────────────────────────────────
+    if (dx == SAME) return 1;
+
+    dist_next    = distance_from_nearest_free_home_bay(next_frog_x);
+    dist_curr    = distance_from_nearest_free_home_bay(frog_x);
+    toward_home  = (dist_next &lt; dist_curr);
+    
+    carried      = (frog_y &gt;= 7 &amp;&amp; frog_y &lt;= 11 &amp;&amp; lane_direction_array[frog_y] == dx);
+    safe_dir     = safe_above_direction();
+    toward_safe  = (safe_dir != SAME &amp;&amp; safe_dir == dx);
+
+    // Road: priorità home bay (nessun fiume da preoccuparsi)
+    if (frog_y &lt;= 5) {
+        if (toward_home) return 5;
+        return 1;
+    }
+
+    // Mediana + Fiume: priorità safe entry, home bay secondaria
+    if (safe_dir == SAME) {
+        // Già allineati sopra un oggetto sicuro: home bay decide
+        if (toward_home) return carried ? 3 : 5;
+        return 1;
+    }
+
+    // Le logiche di peso risultanti
+    if (toward_safe &amp;&amp; toward_home) return 5;           // Ottimo: verso entrambi
+    if (toward_safe)                return carried ? 3 : 4;  // Verso oggetto sicuro
+    if (toward_home)                return 2;           // Solo home bay (non ideale, ma evita blocchi)
+    
+    return 1;                                           // Via di fuga d'emergenza
+}
+
+int[0,1] cant_move() {
+    if ( (prob(SAME, UP) + prob(SAME, DOWN) + prob(RIGHT, SAME) + prob(LEFT, SAME)) == 0 ) return 1;
+    return 0;
+}
+
+</declaration>
+		<location id="id0" x="-3331" y="-3944">
+			<name x="-3366" y="-3927">Idle</name>
+			<label kind="invariant" x="-3458" y="-3910">tick &lt;= MOVE_COOLDOWN &amp;&amp; 
+timer &lt;= get_level_time()</label>
+		</location>
+		<location id="id1" x="-4046" y="-3944">
+			<name x="-4097" y="-3953">Move</name>
+			<committed/>
+		</location>
+		<location id="id2" x="-3008" y="-3944">
+			<name x="-2991" y="-3953">Dead</name>
+			<committed/>
+		</location>
+		<location id="id3" x="-3008" y="-3800">
+			<name x="-2991" y="-3817">GameOver</name>
+		</location>
+		<location id="id4" x="-3332" y="-4105">
+			<name x="-3349" y="-4139">Respawn</name>
+			<label kind="invariant" x="-3349" y="-4156">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+		</location>
+		<branchpoint id="id5" x="-3603" y="-3944"/>
+		<init ref="id4"/>
+		<transition id="id6">
+			<source ref="id5"/>
+			<target ref="id0"/>
+			<label kind="assignment" x="-3434" y="-3986">tick = 0</label>
+			<label kind="probability" x="-3587" y="-3986">1 * cant_move()</label>
+			<nail x="-3586" y="-3987"/>
+			<nail x="-3356" y="-3987"/>
+		</transition>
+		<transition id="id7">
+			<source ref="id2"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-2999" y="-4038">lives &gt; 0</label>
+			<label kind="assignment" x="-2999" y="-4021">reset_frog()</label>
+			<nail x="-3009" y="-4105"/>
+		</transition>
+		<transition id="id8">
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-2999" y="-3876">lives &lt;= 0</label>
+			<label kind="assignment" x="-2999" y="-3859">reset_frog()</label>
+		</transition>
+		<transition id="id9">
+			<source ref="id1"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-4073" y="-4147">on_home_bay()</label>
+			<label kind="assignment" x="-4073" y="-4130">reach_home_bay()</label>
+			<nail x="-4088" y="-4021"/>
+			<nail x="-4089" y="-4105"/>
+		</transition>
+		<transition id="id10">
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-4012" y="-4020">move_frog(SAME, UP)</label>
+			<label kind="probability" x="-3799" y="-4020">prob(SAME, UP) * 999</label>
+			<nail x="-3628" y="-4021"/>
+			<nail x="-4020" y="-4021"/>
+		</transition>
+		<transition id="id11">
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-4021" y="-3978">move_frog(RIGHT, SAME)</label>
+			<label kind="probability" x="-3808" y="-3978">prob(RIGHT, SAME) * 20</label>
+			<nail x="-3628" y="-3978"/>
+			<nail x="-4020" y="-3978"/>
+		</transition>
+		<transition id="id12">
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-4012" y="-3884">move_frog(LEFT, SAME)</label>
+			<label kind="probability" x="-3799" y="-3884">prob(LEFT, SAME) * 20</label>
+			<nail x="-3628" y="-3868"/>
+			<nail x="-4012" y="-3868"/>
+		</transition>
+		<transition id="id13">
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-4012" y="-3927">move_frog(SAME, DOWN)</label>
+			<label kind="probability" x="-3799" y="-3927">prob(SAME, DOWN) * 1</label>
+			<nail x="-3628" y="-3910"/>
+			<nail x="-4020" y="-3910"/>
+		</transition>
+		<transition id="id14" controllable="false">
+			<source ref="id0"/>
+			<target ref="id5"/>
+			<label kind="guard" x="-3586" y="-3944">tick &gt;= MOVE_COOLDOWN</label>
+		</transition>
+		<transition id="id15">
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-3271" y="-4012">timer &gt;= get_level_time()</label>
+			<label kind="assignment" x="-3271" y="-3995">tick = 0, lives--</label>
+			<nail x="-3272" y="-3970"/>
+			<nail x="-3067" y="-3970"/>
+		</transition>
+		<transition id="id16">
+			<source ref="id4"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-3663" y="-4079">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+			<label kind="assignment" x="-3408" y="-4062">tick = 0</label>
+		</transition>
+		<transition id="id17">
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-3263" y="-3953">kill_frog?</label>
+			<label kind="assignment" x="-3263" y="-3936">tick = 0, lives--</label>
+			<nail x="-3263" y="-3919"/>
+			<nail x="-3067" y="-3918"/>
+		</transition>
+		<transition id="id18">
+			<source ref="id1"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-4072" y="-3800">!on_home_bay()</label>
+			<label kind="synchronisation" x="-4071" y="-3783">frog_moved!</label>
+			<label kind="assignment" x="-4071" y="-3766">tick = 0, frog_on_diving_turtle = false</label>
+			<nail x="-4080" y="-3885"/>
+			<nail x="-4080" y="-3800"/>
+			<nail x="-3331" y="-3800"/>
+		</transition>
+	</template>
+	<template>
+		<name>VehicleLane</name>
+		<parameter>const PosY lane_y</parameter>
+		<declaration>// =========================== VEHICLE LANE DECLARATION =========================
+// Shared template for road lanes. The lane identity is fixed by parameter lane_y.
+
+// ------------------------------ Lane parameters ------------------------------
+const int row = lane_y;
+const Direction direction = lane_direction_array[lane_y];
+const int speed = lane_speed_array[lane_y];
+
+// ------------------------------ Local state ------------------------------
+
+clock tick;
+
+// ------------------------------ Lane movement ------------------------------
+
+/*
+ * Advances the logical lane offset by one cell.
+ * The structure array stays fixed; shift represents motion modulo LANE_W.
+ */
+void move_lane() {
+    lane_shift_array[lane_y] = (LANE_W + lane_shift_array[lane_y] + direction) % LANE_W;
+}
+
+// ------------------------------ Collision check ------------------------------
+
+/*
+ * Checks whether Frogger's visible x-position overlaps a vehicle in this lane.
+ * The inverse shift maps Frogger's current coordinate back to the fixed lane
+ * structure, where V is encoded as a true value and S as false.
+ */
+bool collision() {
+    return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W] == V;
+}</declaration>
+		<location id="id19" x="-195" y="-51">
+			<name x="-246" y="-59">Wait</name>
+			<label kind="invariant" x="-323" y="-42">tick &lt;= speed</label>
+		</location>
+		<location id="id20" x="229" y="-51">
+			<name x="246" y="-59">CheckFrog</name>
+			<committed/>
+		</location>
+		<init ref="id19"/>
+		<transition id="id21">
+			<source ref="id20"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-110" y="8">frog_y != lane_y || !collision()</label>
+			<nail x="153" y="8"/>
+			<nail x="-119" y="8"/>
+		</transition>
+		<transition id="id22">
+			<source ref="id19"/>
+			<target ref="id20"/>
+			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
+			<nail x="-119" y="-110"/>
+			<nail x="153" y="-110"/>
+		</transition>
+		<transition id="id23">
+			<source ref="id20"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-110" y="85">frog_y == lane_y &amp;&amp; collision()</label>
+			<label kind="synchronisation" x="-110" y="102">kill_frog!</label>
+			<nail x="170" y="85"/>
+			<nail x="-144" y="85"/>
+		</transition>
+		<transition id="id24">
+			<source ref="id19"/>
+			<target ref="id20"/>
+			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
+			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
+			<nail x="-144" y="-187"/>
+			<nail x="170" y="-187"/>
+		</transition>
+	</template>
+	<template>
+		<name>TruckLane</name>
+		<parameter>const PosY lane_y</parameter>
+		<declaration>// =========================== TRUCK LANE DECLARATION =========================
+// Shared template for truck lanes. The lane identity is fixed by parameter lane_y.
+
+// ------------------------------ Lane parameters ------------------------------
+const int row = lane_y;
+const Direction direction = lane_direction_array[lane_y];
+const int speed = lane_speed_array[lane_y];
+
+// ------------------------------ Local state ------------------------------
+
+clock tick;
+
+// ------------------------------ Lane movement ------------------------------
+
+/*
+ * Advances the logical lane offset by one cell.
+ * The structure array stays fixed; shift represents motion modulo LANE_W.
+ */
+void move_lane() {
+    lane_shift_array[lane_y] = (LANE_W + lane_shift_array[lane_y] + direction) % LANE_W;
+}
+
+// ------------------------------ Collision check ------------------------------
+
+/*
+ * Checks whether Frogger's visible x-position overlaps a vehicle in this lane.
+ * The inverse shift maps Frogger's current coordinate back to the fixed lane
+ * structure, where V is encoded as a true value and S as false.
+ */
+bool collision() {
+    return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W] == V;
+}</declaration>
+		<location id="id25" x="-450" y="-102">
+			<name x="-501" y="-110">Wait</name>
+			<label kind="exponentialrate" x="-527" y="-93">1:speed</label>
+		</location>
+		<location id="id26" x="-26" y="-102">
+			<name x="-9" y="-110">CheckFrog</name>
+			<committed/>
+		</location>
+		<init ref="id25"/>
+		<transition id="id27">
+			<source ref="id26"/>
+			<target ref="id25"/>
+			<label kind="guard" x="-365" y="-43">frog_y != lane_y || !collision()</label>
+			<nail x="-102" y="-43"/>
+			<nail x="-374" y="-43"/>
+		</transition>
+		<transition id="id28">
+			<source ref="id25"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-365" y="-204">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-365" y="-187">frog_moved?</label>
+			<nail x="-374" y="-161"/>
+			<nail x="-102" y="-161"/>
+		</transition>
+		<transition id="id29">
+			<source ref="id26"/>
+			<target ref="id25"/>
+			<label kind="guard" x="-365" y="34">frog_y == lane_y &amp;&amp; collision()</label>
+			<label kind="synchronisation" x="-365" y="51">kill_frog!</label>
+			<nail x="-85" y="34"/>
+			<nail x="-399" y="34"/>
+		</transition>
+		<transition id="id30">
+			<source ref="id25"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-365" y="-280">tick &gt;= 1</label>
+			<label kind="assignment" x="-365" y="-263">move_lane(), tick = 0</label>
+			<nail x="-399" y="-238"/>
+			<nail x="-85" y="-238"/>
+		</transition>
+	</template>
+	<template>
+		<name>FloatingLane</name>
+		<parameter>const PosY lane_y</parameter>
+		<declaration>// ========================== FLOATING LANE DECLARATION =========================
+// Shared template for river lanes. The lane identity is fixed by parameter lane_y.
+
+// ------------------------------ Lane parameters ------------------------------
+const int row = lane_y;
+const Direction direction = lane_direction_array[lane_y];
+const int speed = lane_speed_array[lane_y];
+
+// ------------------------------ Local state ------------------------------
+
+clock tick;
+
+// ------------------------------ Lane movement ------------------------------
+
+/*
+ * Advances the floating lane by one cell.
+ * If Frogger is on this row, he is carried with the object before the lane
+ * offset is updated. The modulo over LANE_W implements difficulty B wraparound,
+ * including the two off-screen cells.
+ */
+void move_lane() {
+    if (frog_y == lane_y) {
+        frog_x = (LANE_W + frog_x + direction) % LANE_W;
+    }
+
+    lane_shift_array[lane_y] = (LANE_W + lane_shift_array[lane_y] + direction) % LANE_W;
+}
+
+// ------------------------------ River safety check ------------------------------
+
+/*
+ * Checks whether Frogger is unsafe on this river lane.
+ *
+ * The inverse shift maps Frogger's current x-coordinate to the fixed support
+ * structure. Water is encoded as 0 and causes drowning. Logs and regular turtle
+ * support are encoded as 1 and are safe. Diving-turtle support is encoded as 2
+ * and is safe except while the global diving phase is submerged.
+ *
+ * D cells may also cover the water gaps between diving turtles of the same
+ * group: this intentionally abstracts the rule allowing Frogger to stand between
+ * nearby turtles, while making the whole group unsafe when submerged.
+ */
+bool drowning() {
+    int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W];
+    return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
+}</declaration>
+		<location id="id31" x="-6358" y="-5788">
+			<name x="-6400" y="-5780">Wait</name>
+			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
+		</location>
+		<location id="id32" x="-5950" y="-5788">
+			<name x="-5933" y="-5796">CheckFrog</name>
+			<committed/>
+		</location>
+		<init ref="id31"/>
+		<transition id="id33">
+			<source ref="id31"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-6579" y="-5856">tick &gt;= speed</label>
+			<label kind="assignment" x="-6647" y="-5839">move_lane(), tick = 0</label>
+			<nail x="-6460" y="-5788"/>
+			<nail x="-6460" y="-5865"/>
+			<nail x="-6358" y="-5865"/>
+		</transition>
+		<transition id="id34">
+			<source ref="id32"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-6273" y="-5754">frog_y != lane_y || !drowning()</label>
+			<nail x="-6010" y="-5728"/>
+			<nail x="-6282" y="-5728"/>
+		</transition>
+		<transition id="id35">
+			<source ref="id31"/>
+			<target ref="id32"/>
+			<label kind="guard" x="-6273" y="-5890">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-6273" y="-5873">frog_moved?</label>
+			<nail x="-6282" y="-5847"/>
+			<nail x="-6010" y="-5847"/>
+		</transition>
+		<transition id="id36">
+			<source ref="id32"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-6273" y="-5653">frog_y == lane_y &amp;&amp; drowning()</label>
+			<label kind="synchronisation" x="-6273" y="-5635">kill_frog!</label>
+			<nail x="-5993" y="-5652"/>
+			<nail x="-6299" y="-5653"/>
+		</transition>
+		<transition id="id37">
+			<source ref="id31"/>
+			<target ref="id32"/>
+			<label kind="guard" x="-6273" y="-5967">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-6273" y="-5950">diving_turtles_submerged?</label>
+			<nail x="-6299" y="-5924"/>
+			<nail x="-5993" y="-5924"/>
+		</transition>
+	</template>
+	<template>
+		<name>DivingTurtleCycle</name>
+		<declaration>// ======================= DIVING TURTLE CYCLE DECLARATION ======================
+// Deterministic global phase shared by all diving turtles.
+//
+// The template alternates emerged -&gt; diving -&gt; submerged -&gt; emerging.
+// Only the submerged phase disables D support in floating-lane safety checks.
+
+clock tick;</declaration>
+		<location id="id38" x="-781" y="-162">
+			<name x="-806" y="-145">Emerged</name>
+			<label kind="invariant" x="-806" y="-127">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+		</location>
+		<location id="id39" x="-782" y="-450">
+			<name x="-824" y="-484">Submerged</name>
+			<label kind="invariant" x="-824" y="-501">tick &lt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+		</location>
+		<location id="id40" x="-637" y="-297">
+			<name x="-620" y="-305">Diving</name>
+			<label kind="invariant" x="-620" y="-289">tick&lt;=DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+		</location>
+		<location id="id41" x="-943" y="-298">
+			<name x="-1028" y="-314">Emerging</name>
+			<label kind="invariant" x="-1333" y="-298">tick &lt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+		</location>
+		<init ref="id38"/>
+		<transition id="id42">
+			<source ref="id41"/>
+			<target ref="id38"/>
+			<label kind="guard" x="-1325" y="-222">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+			<label kind="assignment" x="-1020" y="-205">tick = 0</label>
+			<nail x="-943" y="-163"/>
+		</transition>
+		<transition id="id43">
+			<source ref="id39"/>
+			<target ref="id41"/>
+			<label kind="guard" x="-1291" y="-426">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+			<label kind="assignment" x="-1343" y="-408">diving_turtles_are_submerged = false, tick = 0</label>
+			<nail x="-943" y="-451"/>
+		</transition>
+		<transition id="id44">
+			<source ref="id40"/>
+			<target ref="id39"/>
+			<label kind="guard" x="-628" y="-425">tick &gt;= DIVING_TURTLE_TRANSITION_STATE_TIMER</label>
+			<label kind="synchronisation" x="-628" y="-409">diving_turtles_submerged!</label>
+			<label kind="assignment" x="-629" y="-391">diving_turtles_are_submerged = true, 
+diving_turtles_are_submerging = false,
+tick = 0</label>
+			<nail x="-637" y="-451"/>
+		</transition>
+		<transition id="id45">
+			<source ref="id38"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-628" y="-222">tick &gt;= DIVING_TURTLE_STABLE_STATE_TIMER</label>
+			<label kind="assignment" x="-628" y="-205">diving_turtles_are_submerging = true, tick = 0</label>
+			<nail x="-637" y="-163"/>
+		</transition>
+	</template>
+	<system>
+L1 = VehicleLane(1);
+L2 = VehicleLane(2);
+L3 = VehicleLane(3);
+L4 = VehicleLane(4);
+
+L5 = TruckLane(5);
+
+L7 = FloatingLane(7);
+L8 = FloatingLane(8);
+L9 = FloatingLane(9);
+L10 = FloatingLane(10);
+L11 = FloatingLane(11);
+
+DTC = DivingTurtleCycle();
+
+F = Frogger();
+
+system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
+	<queries>
+		<query>
+			<formula>simulate [&lt;=1000; 1] {F.lives, level}</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-04 17:00:07 +0200">
+				<plot title="Simulations (1)" xaxis="time" yaxis="value">
+					<series title="F.lives" type="l" color="0xff0000" encoding="csv">0.0,5.0
+1000.000002,5.0
+					</series>
+					<series title="level" type="l" color="0x00ffff" encoding="csv">0.0,0.0
+322.0,0.0
+322.0,1.0
+675.0,1.0
+675.0,2.0
+982.0,2.0
+982.0,3.0
+1000.000002,3.0
+					</series>
+					<comment/>
+				</plot>
+			</result>
+		</query>
+	</queries>
+</nta>
