@@ -178,12 +178,6 @@ Score score = 0;
 
 clock global_time;
 
-int up = 0;
-int down = 0;
-int right = 0;
-int left = 0;
-
-
 /*
  * Shared dynamic flags.
  *
@@ -435,7 +429,7 @@ int distance_from_nearest_free_home_bay(int x) {
     int min_dist = LANE_W; // Inizializziamo alla massima distanza possibile (20)
     
     // Se tutte le tane sono occupate, non c'è nessuna distanza da calcolare
-    if (all_home_bays_occupied()) return -1;
+    if (all_home_bays_occupied()) return 99;
 
     for (i = 0; i &lt; HOME_BAYS; i++) {
         if (!home_bay_occupied[i]) {
@@ -627,7 +621,7 @@ timer &lt;= get_level_time()</label>
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-4021" y="-3978">move_frog(RIGHT, SAME)</label>
-			<label kind="probability" x="-3808" y="-3978">prob(RIGHT, SAME) * 20</label>
+			<label kind="probability" x="-3816" y="-3978">prob(RIGHT, SAME) * 20</label>
 			<nail x="-3628" y="-3978"/>
 			<nail x="-4020" y="-3978"/>
 		</transition>
@@ -635,7 +629,7 @@ timer &lt;= get_level_time()</label>
 			<source ref="id5"/>
 			<target ref="id1"/>
 			<label kind="assignment" x="-4012" y="-3884">move_frog(LEFT, SAME)</label>
-			<label kind="probability" x="-3799" y="-3884">prob(LEFT, SAME) * 20</label>
+			<label kind="probability" x="-3808" y="-3884">prob(LEFT, SAME) * 20</label>
 			<nail x="-3628" y="-3868"/>
 			<nail x="-4012" y="-3868"/>
 		</transition>
@@ -665,6 +659,7 @@ timer &lt;= get_level_time()</label>
 			<target ref="id0"/>
 			<label kind="guard" x="-3663" y="-4079">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 			<label kind="assignment" x="-3408" y="-4062">tick = 0</label>
+			<nail x="-3332" y="-4088"/>
 		</transition>
 		<transition id="id17">
 			<source ref="id0"/>
@@ -692,7 +687,7 @@ timer &lt;= get_level_time()</label>
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
-const int row = lane_y;
+const PosY row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
@@ -768,7 +763,7 @@ bool collision() {
 // Shared template for truck lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
-const int row = lane_y;
+const PosY row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
@@ -844,7 +839,7 @@ bool collision() {
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
-const int row = lane_y;
+const PosY row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
