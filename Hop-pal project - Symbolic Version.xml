@@ -63,13 +63,13 @@ const int LEFT = -1;
  * being checked, not as globally unique terrain identifiers.
  */
 const int S = 0; // safe/static street cell
-const int W = 0; // water cell without floating support
-const int V = 1; // vehicle-covered cell
-const int L = 1; // log-supported cell
-const int T = 1; // turtle-supported cell
-const int D = 2; // diving-turtle-supported cell
-const int X = 3; // wall between home bays
-const int H = 4; // valid home-bay cell
+const int W = 1; // water cell without floating support
+const int V = 2; // vehicle-covered cell
+const int L = 3; // log-supported cell
+const int T = 4; // turtle-supported cell
+const int D = 5; // diving-turtle-supported cell
+const int X = 6; // wall between home bays
+const int H = 7; // valid home-bay cell
 
 /*
  * Diving-turtle phase durations.
@@ -111,7 +111,7 @@ typedef int[0, GRID_H - 1] PosY;
 typedef int[0, FROG_MAX_LIVES] Lives;
 typedef int[0, MAX_SCORE] Score;
 typedef int[-1, 1] Direction;
-typedef int[0, 4] Cell;
+typedef int[0, 7] Cell;
 
 // ------------------------------ Lane structure ------------------------------
 
@@ -368,20 +368,16 @@ void reach_home_bay() {
  * Checks whether Frogger is on the home row.
  */
 bool on_finish_lane() {
-    return ((frog_y == GRID_H - 1) &amp;&amp; (LANE_STRUCTURES[frog_y][frog_x] == H));
+    return ((frog_y == GRID_H - 1));
 }
 
 /*
  * Checks whether the next upward move is allowed by the current abstraction.
- *
- * Possible issue:
- *   With FROG_SPAWN_Y = 0, the condition frog_y &lt;= 0 makes can_move() false at
- *   the initial spawn cell. Since the symbolic model only moves upward by
- *   increasing y, this prevents the first move unless another transition changes
- *   Frogger's row.
+ * Frogger cannot move outside of the map and when he is on the finish line he can
+ * only jump into a free homebay.
  */
 bool can_move() {
-    return !(frog_x &lt; 0 || frog_x &gt;= GRID_W) &amp;&amp; !(LANE_STRUCTURES[frog_y+1][frog_x] == X || ((LANE_STRUCTURES[frog_y+1][frog_x] == H &amp;&amp; is_current_home_bay_occupied())));
+    return !(frog_x &lt; 0 || frog_x &gt;= GRID_W || LANE_STRUCTURES[frog_y+1][frog_x] == X || (LANE_STRUCTURES[frog_y+1][frog_x] == H &amp;&amp; is_current_home_bay_occupied()));
 }
 
 /*
@@ -460,9 +456,9 @@ void move() {
 		<transition id="id11">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3502" y="-3136">!on_finish_lane()</label>
-			<label kind="synchronisation" x="-3502" y="-3119">frog_moved!</label>
-			<label kind="assignment" x="-3570" y="-3102">tick = 0,frog_on_diving_turtle = false</label>
+			<label kind="guard" x="-3561" y="-3077">!on_finish_lane()</label>
+			<label kind="synchronisation" x="-3400" y="-3077">frog_moved!</label>
+			<label kind="assignment" x="-3570" y="-3060">tick = 0,frog_on_diving_turtle = false</label>
 			<nail x="-3578" y="-3077"/>
 			<nail x="-3238" y="-3077"/>
 		</transition>
@@ -485,13 +481,13 @@ void move() {
 
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
-const int row = lane_y;
+const PosY row = lane_y;
 
 // ------------------------------ Local state ------------------------------
 
 clock tick;
 PosX shift = 0;
-int[-1,1] a=-1;
+
 // ------------------------------ Lane movement ------------------------------
 
 /*
@@ -510,7 +506,7 @@ void move_lane() {
  * structure, where V is encoded as a true value and S as false.
  */
 bool collision() {
-    return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
+    return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W] == V;
 }
 </declaration>
 		<location id="id13" x="-195" y="-51">
@@ -549,7 +545,7 @@ bool collision() {
 			<source ref="id13"/>
 			<target ref="id14"/>
 			<label kind="guard" x="-110" y="-229">tick &gt;= speed</label>
-			<label kind="assignment" x="-110" y="-212">move_lane(), tick = 0</label>
+			<label kind="assignment" x="-127" y="-212">move_lane(), tick = 0,killed = false</label>
 			<nail x="-144" y="-187"/>
 			<nail x="170" y="-187"/>
 		</transition>
@@ -564,7 +560,7 @@ bool collision() {
 
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
-
+const PosY row = lane_y;
 // ------------------------------ Local state ------------------------------
 
 clock tick;
@@ -602,7 +598,7 @@ void move_lane() {
  */
 bool drowning() {
     int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
-    return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
+    return (frog_y == lane_y) &amp;&amp; (cell == W || (cell == D &amp;&amp; diving_turtles_are_submerged));
 }
 
 
@@ -739,11 +735,82 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<option key="--diagnostic" value="0"/>
 		<query>
-			<formula>E&lt;&gt;(F.Dead &amp;&amp; frog_on_diving_turtle==true)</formula>
+			<formula>A[](L1.row == 1)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-03 14:08:56 +0200">
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:06:32 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
+		</query>
+		<query>
+			<formula>A[](L2.row == 2)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:50 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L3.row == 3)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:58 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L4.row == 4)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:07 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L5.row == 5)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:15 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L7.row == 7)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:21 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L8.row == 8)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:23 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L9.row == 9)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:40 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L10.row == 10)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:29 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L11.row == 11)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-06-22 18:10:02 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[]((frog_y == 1 &amp;&amp; LANE_STRUCTURES[1][(LANE_W + frog_x - L1.shift) % LANE_W] == V &amp;&amp; L1.killed) imply F.Dead)</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula/>
+			<comment/>
 		</query>
 	</queries>
 </nta>
