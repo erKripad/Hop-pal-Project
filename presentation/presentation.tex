@@ -7,7 +7,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage[colorinlistoftodos]{todonotes}
-\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[colorlinks=true, allcolors=black]{hyperref}
 \usepackage{xcolor}
 
 %% Sets page size and margins
@@ -30,9 +30,21 @@
 \maketitle
 
 \begin{abstract}
-UPPAAL is a tool for modeling, simulating, and verifying real-time systems as networks of Timed Automata. In this report, we present the modeling and formal verification of a simplified version of Frogger, a classic arcade game. Both a vanilla and a stochastic version of the model are developed and analyzed.
+UPPAAL is a tool for modeling, simulating, and verifying real-time systems as networks of Timed Automata. In this report, we present the modeling and formal verification of a simplified version of Frogger, a classic arcade game. Both symbolic and a stochastic version of the model are developed and analyzed.
 \end{abstract}
+\thispagestyle{empty}
+
 \newpage
+\tableofcontents
+\thispagestyle{empty}
+\begin{thebibliography}{9}
+\bibitem{uppaal-docs}
+UPPAAL Documentation. \url{https://docs.uppaal.org/}.
+\end{thebibliography}
+
+\newpage
+\setcounter{page}{1}
+
 \section{Introduction}
 \textbf{Frogger} is a classic arcade video game released in 1981, one of the most iconic titles of its era. The primary goal of the game is to successfully guide a frog into a \textbf{home bay} as many times as possible, requiring the player to cross a \textbf{busy highway} and a \textbf{dangerous river}, avoiding moving cars and jumping on logs and turtles to avoid falling into the water.
 
@@ -40,7 +52,7 @@ UPPAAL is a tool for modeling, simulating, and verifying real-time systems as ne
 
 \textbf{UPPAAL} is a tool designed for \textbf{modeling, simulating, and verifying real-time systems} using networks of \textbf{Timed Automata}. It provides a graphical interface alongside a powerful \textbf{query language} that allows the user to formally check properties on the system.
 
-In this project, UPPAAL is applied to \textbf{model and formally verify} a simplified version of Frogger, covering all its \textbf{core mechanics} as defined in the specifications. The goal is to demonstrate that the model \textbf{behaves correctly under all possible conditions}, using both a \textbf{vanilla} and a \textbf{stochastic} version of the automata network.
+In this project, UPPAAL is applied to \textbf{model and formally verify} a simplified version of Frogger, covering all its \textbf{core mechanics} as defined in the specifications. The goal is to demonstrate that the model \textbf{behaves correctly under covered conditions} and to \textbf{verify some given properties}, using both a \textbf{vanilla} and a \textbf{stochastic} version of the automata network.
 
 \subsection{Assumptions and further clarifications}
 The following assumptions are made on the specifications:
@@ -50,13 +62,15 @@ The following assumptions are made on the specifications:
     \item The game timer is assumed to start when Frogger respawns, ignoring the 
     respawn cooldown. As a consequence, the last playable run starts with a game 
     timer of 2 seconds, during which Frogger is bound to die, since the respawn 
+    \item Levels are starting by 0
     cooldown and the game timer are both equal to 2 seconds.
+    \item Frogger cannot move outside the visible grid. 
     \item The initial level is zero.
 \end{itemize}
 
 After further context clarifications with the professor we also defined the following edge cases or ambiguous situations:
 \begin{itemize}
-    \item 
+    \item If Frogger attempts to reach a green cell, the move is simply blocked rather than resulting in its death.
 \end{itemize}
 
 \newpage
@@ -163,7 +177,7 @@ the same size; both parameters are constants and defined at the
 instantiation of the template.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/vehicle_lane.png}
+    \includegraphics[width=\textwidth]{images/vehicle_lane.jpeg}
     \caption{Vehicle Lane Template}
     \label{fig:vehicleLaneImage}
 \end{figure}
@@ -189,7 +203,7 @@ The floating lane template models a river lane, where the frog can
 only survive by standing on floating objects, such as logs and turtles.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/floating_lane.png}
+    \includegraphics[width=\textwidth]{images/floating_lane.jpeg}
     \caption{Floating Object Lane Template}
     \label{fig:floatingLaneImage}
 \end{figure}
@@ -221,7 +235,7 @@ cycle of the diving turtles through four states: \textit{Emerged},
 \textit{Diving}, \textit{Submerged}, and \textit{Emerging}.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/diving_turtles_cycle.png}
+    \includegraphics[width=\textwidth]{images/diving_turtles_cycle.jpeg}
     \caption{Diving Turtles Manager Template}
     \label{fig:divingTurtlesImage}
 \end{figure}
@@ -252,27 +266,45 @@ to the event:
 
 
 \subsection{Stochastic Variation}
+In the stochastic variant, some of the previous timed automata
+are modified to implement probabilistic features:
+Frogger moves in each direction with a different probability weight,
+while the truck lane moves at a non-deterministic speed.
+
+\subsubsection{Frogger}
+In the deterministic template, once the guard \texttt{tick >= MOVE\_COOLDOWN}
+is satisfied, the frog is allowed to leave \textbf{Idle} and move in a
+non-deterministic direction (\texttt{UP}, \texttt{DOWN},
+\texttt{LEFT}, \texttt{RIGHT}). Here, the choice is resolved through four
+weighted branches instead, whose normalised weights become the actual
+probability of each direction.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/frogger_stochastic.jpeg}
+    \caption{Frogger Template -- Stochastic Variation}
+    \label{fig:froggerStochasticImage}
+\end{figure}
+
+\subsubsection{Vehicle Lane}
+In the deterministic template, the lane moved on a fixed rate as soon as the internal clock
+reached \texttt{speed}. Here,
+\textbf{Wait} instead carries a rate of exponential \texttt{1:speed}, i.e.\
+$\lambda = 1/\texttt{speed}$: since the location has no invariant, the
+probability of \texttt{move\_lane()} firing within $t$ time units is
+$Pr(t) = 1 - e^{-t/\texttt{speed}}$.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/vehicle_lane_stochastic.jpeg}
+    \caption{Vehicle Lane Template -- Stochastic Variation}
+    \label{fig:vehicleStochasticImage}
+\end{figure}
 
 \newpage
 \section{Properties Verification}
-In this section are shown the proprieties that have been checked over the system to be sure that
-it behaves as expected and the queries requested are verified. 
-The properties we discuss here can be found as queries in the Verifier section of UPPAAL.
-Details about the time and RAM usage of the verification process can be found in the report.
+In this seciton the properties specified by the specifications are verified through the UPPAAL verifier, in which 
+the queries can be found.
 
-
-\subsection{System verification}
-
-\subsubsection*{A home bay is reachable}
-\[ (\textrm{III}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 12 
-   \;\wedge\; home\_bays[frog\_x] = 1 \big) \]
-It's saying that exists at least one path that eventually will lead to 
-Frogger reaching a home bay cell, i.e. a cell in row 12 whose column is 
-marked as a home bay in the map.
-
-\subsubsection{Frog is never alive on a vehicle cell}
-
-\subsection{Properties Verification}
+\subsection{Symbolic Verification}
 The following properties are expressed in TCTL, a simplified version is used in UPPAAL for the formal verification. 
 Each property is briefly commented to explain its meaning with respect to the system behavior.
 
@@ -298,11 +330,10 @@ an object to leave its lane.
 \[ (\textrm{III}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 12 
    \;\wedge\; home\_bays[0] = true \big) \]
 It's saying that exists at least one path that eventually will lead to 
-Frogger reaching a home bay cell, i.e. a cell in row 12 whose column is 
-marked as a home bay in the map.
+Frogger reaching a home bay cell.
 
 \subsubsection*{Frogger can score 17 points reaching the home bay in position (8,12)–(9,12)}
-\[ (\textrm{IV}) : \quad \exists \Diamond \; \big(  home\_bays[3] = true 
+\[ (\textrm{IV}) : \quad \exists \Diamond \; \big(  home\_bays[2] = true 
    \;\wedge\; \textit{frog\_y} = 12 \;\wedge\; \textit{score} = 17 \big) \]
 A refinement of the previous property: there exists a path on which Frogger 
 reaches the home bay at $(8,12)$--$(9,12)$ while holding exactly 17 points.
@@ -310,17 +341,40 @@ reaches the home bay at $(8,12)$--$(9,12)$ while holding exactly 17 points.
 \subsubsection*{Frogger can reach a yellow cell in row 6 after the player has lost two lives}
 \[ (\textrm{V}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 6 
    \;\wedge\; \textit{lives} = \textit{MAX\_LIVES} - 2 \big) \]
-There exists a path on which Frogger reaches a cell in row 6 (the safe median) 
-after having lost exactly two lives, i.e. with three of the initial five 
-remaining.
+It states that there exists a path on which Frogger
+reaches a yellow cell, the safe lane
+between the road and the river, after already having
+lost exactly two lives.
 
-\subsubsection*{Frogger may stand on a log (with five lives) 10 seconds after the game starts}
-\[ (\textrm{VI}) : \quad \exists \Diamond \; \big( \textit{lives} = 
-   \textit{MAX\_LIVES} \;\wedge\; \textit{LANE\_STRUCTURES}[\textit{frog\_y}]
-   [\textit{frog\_x}] = L \;\wedge\; \textit{frog\_timer} = 100 \big) \]
-There exists a path on which, within 10 seconds from the start (100 ticks, 
-since one tick is 0.1 s) and still with all five lives, Frogger is standing on 
-a log.
+\subsubsection*{Frogger may stand on a log (with five lives) 10 seconds
+after the game starts}
+\[
+\begin{aligned}[t]
+& (\textrm{VI}) : \quad \exists \Diamond \Bigg( \textit{lives} =
+   \textit{MAX\_LIVES} \wedge \textit{frog\_timer} = 100 \wedge
+   \Big( \\
+& \quad \big( \textit{frog\_y} = 8 \wedge
+   \textit{LANE\_STRUCTURES}[8][ \\
+& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L8.shift})
+   \bmod \textit{LANE\_W}] = L \big) \\
+& \quad \vee\ \big( \textit{frog\_y} = 9 \wedge
+   \textit{LANE\_STRUCTURES}[9][ \\
+& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L9.shift})
+   \bmod \textit{LANE\_W}] = L \big) \\
+& \quad \vee\ \big( \textit{frog\_y} = 11 \wedge
+   \textit{LANE\_STRUCTURES}[11][ \\
+& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L11.shift})
+   \bmod \textit{LANE\_W}] = L \big) \Big) \Bigg)
+\end{aligned}
+\]
+Rows 8, 9 and 11 are the only river lanes that carry logs, so the
+disjunction covers exactly the positions where Frogger could be riding
+one. Since each lane scrolls independently through the constant
+\texttt{Li.shift}, the cell underneath the frog is not simply
+\texttt{LANE\_STRUCTURES[frog\_y][frog\_x]}: the shift has to be
+subtracted first, and \texttt{LANE\_W} added back before taking the
+modulo, so the index never becomes negative. The resulting cell is then
+checked to be a log (\texttt{L}).
 
 \subsubsection*{Frogger can die riding a diving turtle that transitions to the submerged state}
 \[ (\textrm{VII}) : \quad \exists \Diamond \; \big( 
@@ -332,15 +386,171 @@ water and the frog to drown. This checks the interaction between the
 \textbf{DivingTurtleCycle} and the \textbf{FloatingLane} through the 
 \texttt{diving\_turtles\_submerged} channel.
 
-\subsection{Stochastic Verification}
+\subsection{Stochastic Analysis}
+This section evaluates the stochastic variant introduced above through
+Statistical Model Checking, using the plain weighted policy defined
+in the design section for Frogger and the Vehicle Lane. The resulting estimates serve
+as a baseline: a later section repeats the same analysis with a more
+advanced, context-aware movement policy, to check whether it improves
+Frogger's chances.
+\subsubsection{Completing the first level with at least 200 points}
+\textit{Given the above specification for the stochastic version,
+simulate the game for a maximum of 1000 time units and estimate the
+probability of completing the first level while scoring at least
+200 points.}
+\vspace{\baselineskip}
+
+Running \texttt{Pr[<=1000;1000](<> level==1 \&\& score>=200)} on the
+stochastic model yields a probability estimate with a 99\% confidence
+interval of $[0.000338, 0.010934]$, which is essentially negligible.
+This is a direct consequence of the frog's movement policy: the
+weighted branches introduced in the stochastic variant (0.5 UP, 0.2
+RIGHT, 0.2 LEFT, 0.1 DOWN) have no awareness of the surrounding cells,
+so Frogger keeps moving with the same fixed bias regardless of an
+incoming vehicle, an empty water cell, or a nearby log. Crossing the
+lanes turned out to be more difficult for the frog than expected. The
+probability of Frogger reaching 200 points and completing the first
+level is close to zero: in order to improve the frog's chances, a more
+sophisticated movement policy is necessary.
+
+\subsubsection{Context-Aware Movement Policy}
+
+This section presents the context-aware movement policy
+implementation, and repeats the same Statistical Model
+Checking analysis to assess whether it improves Frogger's
+chances with respect to the fixed weighted policy. The
+policy combines a legality check, a one-step predictive
+layer, and a probability-weighted decision rule, so that
+Frogger's behaviour depends on the current and near-future
+state of the board.
+
+\textbf{Move legality.} Before a direction is evaluated,
+the policy checks that Frogger's current position lies
+within the grid and that the target move cell lies within the grid: 
+Frogger can never voluntarily step outside the playing field, unless
+it's carried out by a moving log. A candidate move is then discarded if the target
+cell is:
+\begin{itemize}
+    \item a wall (\texttt{X});
+    \item an already-occupied home bay (\texttt{H});
+    \item a cell currently occupied by a vehicle
+        (\texttt{V});
+    \item open water (\texttt{W});
+    \item a diving turtle that is currently submerged (\texttt{T}).
+\end{itemize}
+
+\textbf{Predictive layer.} Among the moves that pass the
+legality check, the policy additionally looks one step
+ahead in time: a move is discarded if the vehicle occupying
+the target lane will reach that cell on its next update, 
+and likewise if the target cell is a diving
+turtle about to submerge.
+
+\textbf{Direction selection.} Each surviving direction
+receives an integer weight between 0 and 5, based on 
+the weighted probability assigned by the policy.
+Forward movement is favoured by default;
+weights are additionally increased for directions that
+reduce Frogger's distance to the nearest unoccupied home
+bay, biasing progress towards the closest available goal
+rather than an arbitrary one. Direction is then sampled
+stochastically according to these weights.
+
+\textbf{River behaviour.} While Frogger is waiting on the
+riverbank because no adjacent floating object is currently
+safe to board, the policy departs from the general
+weighting rule and instead directs movement towards the
+nearest log or turtle and, simultaneously, the nearest free
+home bay.
+
+\textbf{No movement handling.} If every direction has probability zero,
+(\emph{can't move}) is activated, making Frogger
+deterministically stationary for that time step instead of
+leaving the model without an enabled transition.
+
+\subsubsection{Context-Aware Policy Analysis}
+
+We simulated the policy with
+\texttt{Pr[<=10000; 1000](<>level==12)}, estimating, over
+1000 runs bounded at 10000 time units, the probability that
+Frogger reaches level 12 obtaining the following results.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.40\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/PDD.jpeg}
+        \caption{Probability Density Distribution of the
+        stochastic enhanced model}
+        \label{fig:PDDImage}
+    \end{minipage}
+    \hspace{0.15\textwidth}
+    \begin{minipage}{0.40\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CPD.jpeg}
+        \caption{Cumulative Probability Distribution of the
+        stochastic enhanced model}
+        \label{fig:CPDImage}
+    \end{minipage}
+\end{figure}
+
+\textbf{Level-completion probability.} The Statistical
+Model Checking estimate for
+\texttt{Pr[<=10000;\allowbreak1000](<>level>=12)}, shown in
+Figure~\ref{fig:CPDImage}, is $0.78 \pm 0.03$ (95\% CI):
+the context-aware policy reaches level 12 or beyond in
+roughly 78\% of the 1000 runs, a substantial improvement
+over the fixed weighted policy.
+
+\textbf{Timing distribution.} The density
+(Figure~\ref{fig:PDDImage}) shows that, when level 12 is
+reached, it happens predominantly between $t \approx 4050$
+and $t \approx 4750$.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.40\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CPD-maxlevel.jpeg}
+        \caption{Cumulative Probability Distribution of the
+        maximum level reached with the stochastic enhanced model}
+        \label{fig:CPDMaxLevelImage}
+    \end{minipage}
+    \hspace{0.15\textwidth}
+    \begin{minipage}{0.40\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CPD-maxscore.jpeg}
+        \caption{Cumulative Probability Distribution of the
+        maximum score reached with the stochastic enhanced model}
+        \label{fig:CPDMaxScoreImage}
+    \end{minipage}
+\end{figure}
+
+\textbf{Levels completed.}
+Figure~\ref{fig:CPDMaxLevelImage} shows the cumulative
+distribution of the maximum level reached within each run
+(\texttt{E[<=8000;1000](max: level)}). The curve rises
+sharply and is concentrated in a narrow band around level
+11--13, consistent with the estimated expected value of
+$11.84 \pm 0.03$ (95\% CI): on average, the context-aware
+policy takes Frogger almost all the way to level 12
+before the simulation bound is reached, with little
+variance across runs.
+
+\textbf{Score achieved.}
+Figure~\ref{fig:CPDMaxScoreImage} shows the cumulative
+distribution of the maximum score reached within each run
+(\texttt{E[<=8000;1000](max: score)}), with an estimated
+expected value of $2329 \pm 5$ (95\% CI), consistent with
+the sustained progress described above.
 
 \newpage
 \section{Conclusion}
 To summarize, we modelled and formally verified a simplified version of 
 Frogger in UPPAAL, developing both a symbolic and a stochastic version of the 
 system as a network of Timed Automata that captures all the core mechanics of 
-the game. We verified a set of TCTL properties, proving 
-both the correctness of the system and the reachability of requested queries. 
+the game. We verified a set of TCTL properties through the UPPAAL verifier, proving 
+the reachability of requested queries. 
 The work highlighted some design trade-offs adopted to avoid 
 the state space explosion during verification, keeping the final model compact 
 and efficient while preserving a faithful representation of the game logic.

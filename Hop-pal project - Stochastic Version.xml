@@ -860,8 +860,119 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<option key="--alpha" value="0.01"/>
 		<query>
-			<formula>A&lt;&gt;(F.lives==4)</formula>
+			<formula>Pr[&lt;=1000; 1000](&lt;&gt; level==1 &amp;&amp; score&gt;=200)</formula>
 			<comment/>
+			<result outcome="success" type="quantity" value="0.00563596 ± 0.00529782 (99% CI)" timestamp="2026-07-05 20:03:02 +0200">
+				<option key="--alpha" value="0.01"/>
+				<details>0.00563596 ± 0.00529782 (99% CI)</details>
+				<plot title="Probability Density Distribution" xaxis="run duration in time" yaxis="probability density">
+					<series title="density" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,6.896551724137931E-5
+408.5,6.896551724137931E-5
+423.0,6.896551724137931E-5
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,6.896551724137931E-5
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Probability Density Confidence Intervals" xaxis="run duration in time" yaxis="probability density">
+					<series title="upper limit" type="b(14.500000)" color="0xa0a0ff" encoding="csv">394.0,0.007406286938352938
+408.5,0.007406286938352938
+423.0,0.007406286938352938
+					</series>
+					<series title="lower limit" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,5.0125292607775065E-6
+408.5,5.0125292607775065E-6
+423.0,5.0125292607775065E-6
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,5.107784095415819E-4
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Probability Distribution" xaxis="run duration in time" yaxis="probability">
+					<series title="probability" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,0.001
+408.5,0.001
+423.0,0.001
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,0.001
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Probability Confidence Intervals" xaxis="run duration in time" yaxis="probability">
+					<series title="upper limit" type="b(14.500000)" color="0xa0a0ff" encoding="csv">394.0,0.007406286938352938
+408.5,0.007406286938352938
+423.0,0.007406286938352938
+					</series>
+					<series title="lower limit" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,5.0125292607775065E-6
+408.5,5.0125292607775065E-6
+423.0,5.0125292607775065E-6
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,0.007406286938352938
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Cumulative Probability Distribution" xaxis="run duration in time" yaxis="probability">
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">394.0,0.0
+408.5,0.001
+423.0,0.002
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,0.0030000000000000027
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Cumulative Probability Confidence Intervals" xaxis="run duration in time" yaxis="probability">
+					<series title="upper limit" type="k" color="0x0000dd" encoding="csv">394.0,0.005284306039497443
+408.5,0.007406286938352938
+423.0,0.009240130636205579
+					</series>
+					<series title="lower limit" type="k" color="0xdd0000" encoding="csv">394.0,0.0
+408.5,5.0125292607775065E-6
+423.0,1.0354097257471616E-4
+					</series>
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">394.0,0.0
+408.5,0.001
+423.0,0.002
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,0.0030000000000000027
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+				<plot title="Frequency Histogram" xaxis="run duration in time" yaxis="count">
+					<series title="count" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,1.0
+408.5,1.0
+423.0,1.0
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
+411.0,1.0
+					</series>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
+Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
+Displayed sample set: { 423, 416, 394 }
+Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+				</plot>
+			</result>
 		</query>
 	</queries>
 </nta>
