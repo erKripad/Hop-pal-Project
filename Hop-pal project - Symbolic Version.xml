@@ -348,94 +348,92 @@ void move() {
     add_score(MOVE_UP_SCORE);
 }
 </declaration>
-		<location id="id0" x="-3213" y="-3162">
-			<name x="-3264" y="-3170">Idle</name>
-			<label kind="invariant" x="-3383" y="-3153">timer &lt;= LEVEL_TIME</label>
+		<location id="id0" x="-3000" y="-3085">
+			<name x="-3051" y="-3093">Idle</name>
+			<label kind="invariant" x="-3178" y="-3076">timer &lt;= LEVEL_TIME</label>
 		</location>
-		<location id="id1" x="-3629" y="-3153">
-			<name x="-3680" y="-3162">Move</name>
+		<location id="id1" x="-3484" y="-3077">
+			<name x="-3535" y="-3086">Move</name>
 			<committed/>
 		</location>
-		<location id="id2" x="-2856" y="-3162">
-			<name x="-2847" y="-3153">Dead</name>
+		<location id="id2" x="-2583" y="-3084">
+			<name x="-2574" y="-3075">Dead</name>
 			<committed/>
 		</location>
-		<location id="id3" x="-2856" y="-2983">
-			<name x="-2890" y="-2966">GameOver</name>
+		<location id="id3" x="-2583" y="-2914">
+			<name x="-2566" y="-2923">GameOver</name>
 		</location>
-		<location id="id4" x="-2618" y="-3162">
-			<name x="-2643" y="-3145">Respawn</name>
-			<label kind="invariant" x="-2711" y="-3128">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+		<location id="id4" x="-3000" y="-3254">
+			<name x="-2992" y="-3255">Respawn</name>
+			<label kind="invariant" x="-2992" y="-3238">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 		</location>
 		<init ref="id4"/>
 		<transition id="id5">
 			<source ref="id1"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-3578" y="-3017">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3578" y="-3000">reach_home_bay(), add_score(LEVEL_COMPLETE_SCORE)</label>
-			<nail x="-3595" y="-2983"/>
+			<label kind="guard" x="-3442" y="-2949">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3442" y="-2932">reach_home_bay(), add_score(LEVEL_COMPLETE_SCORE)</label>
+			<nail x="-3450" y="-2916"/>
 		</transition>
 		<transition id="id6">
 			<source ref="id2"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-2847" y="-3094">lives &lt;= 0</label>
-			<label kind="assignment" x="-2847" y="-3077">reset()</label>
+			<label kind="guard" x="-2574" y="-3016">lives &lt;= 0</label>
+			<label kind="assignment" x="-2574" y="-2999">reset()</label>
 		</transition>
 		<transition id="id7">
 			<source ref="id0"/>
 			<target ref="id2"/>
-			<label kind="guard" x="-3128" y="-3204">timer &gt;= LEVEL_TIME</label>
-			<label kind="assignment" x="-3128" y="-3187">tick = 0, lives--</label>
-			<nail x="-3145" y="-3204"/>
-			<nail x="-2941" y="-3204"/>
-			<nail x="-2932" y="-3204"/>
+			<label kind="guard" x="-2932" y="-3119">timer &gt;= LEVEL_TIME</label>
+			<label kind="assignment" x="-2932" y="-3102">tick = 0, lives--</label>
+			<nail x="-2932" y="-3119"/>
+			<nail x="-2660" y="-3119"/>
+			<nail x="-2660" y="-3119"/>
 		</transition>
 		<transition id="id8">
 			<source ref="id2"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-2779" y="-3196">lives &gt;= 1</label>
-			<label kind="assignment" x="-2779" y="-3179">reset()</label>
+			<label kind="guard" x="-2575" y="-3178">lives &gt;= 1</label>
+			<label kind="assignment" x="-2575" y="-3161">reset()</label>
+			<nail x="-2583" y="-3254"/>
 		</transition>
 		<transition id="id9">
 			<source ref="id1"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-3569" y="-3366">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3569" y="-3349">tick = 0, reach_home_bay()</label>
-			<nail x="-3595" y="-3366"/>
-			<nail x="-2643" y="-3366"/>
+			<label kind="guard" x="-3442" y="-3255">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3442" y="-3238">tick = 0, reach_home_bay()</label>
+			<nail x="-3451" y="-3255"/>
 		</transition>
 		<transition id="id10">
 			<source ref="id4"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3145" y="-3281">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
-			<label kind="assignment" x="-3145" y="-3264">tick = 0</label>
-			<nail x="-2652" y="-3281"/>
-			<nail x="-3179" y="-3281"/>
+			<label kind="guard" x="-2991" y="-3187">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+			<label kind="assignment" x="-2991" y="-3170">tick = 0</label>
 		</transition>
 		<transition id="id11">
 			<source ref="id0"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-3128" y="-3119">kill_frog?</label>
-			<label kind="assignment" x="-3128" y="-3102">tick = 0, lives--</label>
-			<nail x="-3136" y="-3119"/>
-			<nail x="-2949" y="-3119"/>
+			<label kind="synchronisation" x="-2923" y="-3051">kill_frog?</label>
+			<label kind="assignment" x="-2923" y="-3034">tick = 0, lives--</label>
+			<nail x="-2932" y="-3051"/>
+			<nail x="-2660" y="-3051"/>
 		</transition>
 		<transition id="id12">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3586" y="-3128">!on_finish_lane()</label>
-			<label kind="synchronisation" x="-3586" y="-3111">frog_moved!</label>
-			<label kind="assignment" x="-3586" y="-3094">tick = 0,frog_on_diving_turtle = false</label>
-			<nail x="-3603" y="-3077"/>
-			<nail x="-3247" y="-3077"/>
+			<label kind="guard" x="-3450" y="-3060">!on_finish_lane()</label>
+			<label kind="synchronisation" x="-3450" y="-3043">frog_moved!</label>
+			<label kind="assignment" x="-3450" y="-3026">tick = 0,frog_on_diving_turtle = false</label>
+			<nail x="-3458" y="-3010"/>
+			<nail x="-3034" y="-3009"/>
 		</transition>
 		<transition id="id13">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="guard" x="-3578" y="-3221">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
-			<label kind="assignment" x="-3578" y="-3204">move()</label>
-			<nail x="-3247" y="-3221"/>
-			<nail x="-3603" y="-3221"/>
+			<label kind="guard" x="-3450" y="-3145">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
+			<label kind="assignment" x="-3450" y="-3128">move()</label>
+			<nail x="-3034" y="-3145"/>
+			<nail x="-3458" y="-3145"/>
 		</transition>
 	</template>
 	<template>
