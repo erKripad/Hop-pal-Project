@@ -17,11 +17,11 @@
     HOP-PAAL: A Formal Frogger Journey\\[0.4em]
     \normalsize \text{Formal Methods for Software Engineering}\\
     \normalsize \text{A.Y. 2025-2026}}
-\author{Daniele Crippa, Dario Cambi and Giorgio Ciraci \\[0.8em]
+\author{Dario Cambi, Giorgio Ciraci and Daniele Crippa\\[0.8em]
     \normalsize \text{Politecnico di Milano}\\
-    \small \textit{daniele5.crippa@mail.polimi.it}\\
     \small \textit{dario.cambi@mail.polimi.it}\\
-    \small \textit{giorgio.ciraci@mail.polimi.it}\\}
+    \small \textit{giorgio.ciraci@mail.polimi.it}\\
+    \small \textit{daniele5.crippa@mail.polimi.it}\\}
 
 
 
@@ -62,15 +62,14 @@ The following assumptions are made on the specifications:
     \item The game timer is assumed to start when Frogger respawns, ignoring the 
     respawn cooldown. As a consequence, the last playable run starts with a game 
     timer of 2 seconds, during which Frogger is bound to die, since the respawn 
-    \item Levels are starting by 0
-    cooldown and the game timer are both equal to 2 seconds.
     \item Frogger cannot move outside the visible grid. 
-    \item The initial level is zero.
+    \item Levels are indexed starting from zero.
 \end{itemize}
 
 After further context clarifications with the professor we also defined the following edge cases or ambiguous situations:
 \begin{itemize}
-    \item If Frogger attempts to reach a green cell, the move is simply blocked rather than resulting in its death.
+\item If Frogger attempts to reach an invalid cell, i.e. a green cell, an occupied home bay
+    or a cell out of the map, the move is simply blocked rather than resulting in its death.
 \end{itemize}
 
 \newpage
@@ -115,9 +114,10 @@ representation compact and avoids continuously updating a large array, which
 would otherwise enlarge the state space.
 
 \subsubsection*{Lane Abstraction}
-Roads and rivers are both modelled as lanes, since they share most of their 
-logic; this avoids modelling each element separately and prevents the state 
-space from exploding. The motion of objects is not rewritten in the map matrix 
+Roads and rivers are both modelled as lanes, since they share most of their
+logic; within each lane, all objects move at the same speed. This avoids
+modelling each element separately and prevents the state space from
+exploding. The motion of objects is not rewritten in the map matrix 
 but represented by a single per-lane shift variable, keeping the 
 representation compact.
 
@@ -129,16 +129,22 @@ reason, \texttt{frog\_x} ranges over the full \texttt{LANE\_W}, allowing
 Frogger to be carried slightly off-screen while riding a floating object.
 
 \subsubsection*{Lanes Handle Frogger's Death}
-The decision to kill Frogger is delegated to the lanes rather than to the frog 
-itself. Each lane knows the global position of Frogger, so it is 
-the natural place to detect a collision or an unsafe cell; when this happens, 
-it requests the death through the \texttt{kill\_frog} channel, which 
-\textbf{Frogger} automaton consumes by removing a life and respawning. This keeps 
-the collision logic local to each lane and leaves the frog simple and focused on its own movement and life management.
+The decision to kill Frogger is delegated to the lanes rather than to the frog
+itself. Each time Frogger moves, it broadcasts this event on a dedicated
+channel; the broadcast is captured only by the lane on which Frogger is
+currently located, which then checks whether the new position results in a
+collision or an unsafe cell. Since each lane knows the global position of
+Frogger, it is the natural place to perform this check; when an unsafe
+condition is detected, the lane requests the death through the
+\texttt{kill\_frog} channel, which the \textbf{Frogger} automaton consumes by
+removing a life and respawning. This keeps the collision logic local to each
+lane and leaves the frog simple and focused on its own movement and life
+management.
 
 \subsubsection*{Turtles Management}
-The global submersion cycle of the diving turtles is delegated to a separate template,
-so that the shared timing is defined in one place and simply observed by the lanes.
+In the game, all diving turtles follow the same submersion cycle, so this
+global cycle is delegated to a separate template, in which the shared timing
+is defined in one place and simply observed by the lanes.
 
 Moreover, the water gaps between turtles of the same group are encoded as turtle cells, since Frogger 
 standing on those cells is equally safe, the two are semantically equivalent.
@@ -436,7 +442,7 @@ cell is:
     \item a cell currently occupied by a vehicle
         (\texttt{V});
     \item open water (\texttt{W});
-    \item a diving turtle that is currently submerged (\texttt{T}).
+    \item a diving turtle that is currently submerged (\texttt{D}).
 \end{itemize}
 
 \textbf{Predictive layer.} Among the moves that pass the
@@ -456,17 +462,18 @@ bay, biasing progress towards the closest available goal
 rather than an arbitrary one. Direction is then sampled
 stochastically according to these weights.
 
-\textbf{River behaviour.} While Frogger is waiting on the
-riverbank because no adjacent floating object is currently
-safe to board, the policy departs from the general
-weighting rule and instead directs movement towards the
+\textbf{River behaviour.} While Frogger is on the river and no
+adjacent floating object is currently safe to board, the policy departs from
+the general weighting rule and instead directs movement towards the
 nearest log or turtle and, simultaneously, the nearest free
 home bay.
 
-\textbf{No movement handling.} If every direction has probability zero,
-(\emph{can't move}) is activated, making Frogger
-deterministically stationary for that time step instead of
-leaving the model without an enabled transition.
+\textbf{No movement handling.} If every direction has probability zero
+because no direction is safe, the \emph{can't move} option is activated,
+allowing Frogger to remain in the same position instead of being forced to
+choose non-deterministically among unsafe moves. The \emph{can't move}
+option is in mutual exclusion with the other four movement directions, so
+that Frogger either moves or stays still, but never both.
 
 \subsubsection{Context-Aware Policy Analysis}
 
