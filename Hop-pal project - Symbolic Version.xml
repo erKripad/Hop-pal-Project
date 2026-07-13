@@ -296,7 +296,6 @@ broadcast chan diving_turtles_submerged;</declaration>
 clock tick;
 
 Lives lives = FROG_MAX_LIVES;
-bool game_won = false;
 
 // ------------------------------ Local Utilities --------------------------------
 
@@ -319,10 +318,6 @@ void reset() {
 void reach_home_bay() {
     add_score(HOME_BAY_SCORE);
     set_current_home_bay_as_occupied();
-    if (all_home_bays_occupied()) {
-        add_score(LEVEL_COMPLETE_SCORE);
-        game_won = true;
-    }
     reset();
 }
 
@@ -353,32 +348,32 @@ void move() {
     add_score(MOVE_UP_SCORE);
 }
 </declaration>
-		<location id="id0" x="-3221" y="-3162">
-			<name x="-3272" y="-3170">Idle</name>
-			<label kind="invariant" x="-3400" y="-3153">timer &lt;= LEVEL_TIME</label>
+		<location id="id0" x="-3213" y="-3162">
+			<name x="-3264" y="-3170">Idle</name>
+			<label kind="invariant" x="-3383" y="-3153">timer &lt;= LEVEL_TIME</label>
 		</location>
-		<location id="id1" x="-3604" y="-3153">
-			<name x="-3655" y="-3162">Move</name>
+		<location id="id1" x="-3629" y="-3153">
+			<name x="-3680" y="-3162">Move</name>
 			<committed/>
 		</location>
 		<location id="id2" x="-2856" y="-3162">
 			<name x="-2847" y="-3153">Dead</name>
 			<committed/>
 		</location>
-		<location id="id3" x="-2856" y="-3009">
-			<name x="-2890" y="-2992">GameOver</name>
+		<location id="id3" x="-2856" y="-2983">
+			<name x="-2890" y="-2966">GameOver</name>
 		</location>
-		<location id="id4" x="-2601" y="-3162">
-			<name x="-2584" y="-3170">Respawn</name>
-			<label kind="invariant" x="-2703" y="-3145">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN) 
-&amp;&amp; !game_won</label>
+		<location id="id4" x="-2618" y="-3162">
+			<name x="-2643" y="-3145">Respawn</name>
+			<label kind="invariant" x="-2711" y="-3128">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 		</location>
 		<init ref="id4"/>
 		<transition id="id5">
-			<source ref="id4"/>
+			<source ref="id1"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-2728" y="-3009">game_won</label>
-			<nail x="-2601" y="-3009"/>
+			<label kind="guard" x="-3578" y="-3017">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3578" y="-3000">reach_home_bay(), add_score(LEVEL_COMPLETE_SCORE)</label>
+			<nail x="-3595" y="-2983"/>
 		</transition>
 		<transition id="id6">
 			<source ref="id2"/>
@@ -389,8 +384,8 @@ void move() {
 		<transition id="id7">
 			<source ref="id0"/>
 			<target ref="id2"/>
-			<label kind="guard" x="-3119" y="-3247">timer &gt;= LEVEL_TIME</label>
-			<label kind="assignment" x="-3111" y="-3230">tick = 0, lives--</label>
+			<label kind="guard" x="-3128" y="-3204">timer &gt;= LEVEL_TIME</label>
+			<label kind="assignment" x="-3128" y="-3187">tick = 0, lives--</label>
 			<nail x="-3145" y="-3204"/>
 			<nail x="-2941" y="-3204"/>
 			<nail x="-2932" y="-3204"/>
@@ -398,49 +393,49 @@ void move() {
 		<transition id="id8">
 			<source ref="id2"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-2796" y="-3187">lives &gt;= 1</label>
-			<label kind="assignment" x="-2788" y="-3162">reset()</label>
+			<label kind="guard" x="-2779" y="-3196">lives &gt;= 1</label>
+			<label kind="assignment" x="-2779" y="-3179">reset()</label>
 		</transition>
 		<transition id="id9">
 			<source ref="id1"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-3238" y="-3391">on_finish_lane()</label>
-			<label kind="assignment" x="-3281" y="-3366">tick = 0, reach_home_bay()</label>
-			<nail x="-3570" y="-3366"/>
-			<nail x="-2660" y="-3366"/>
+			<label kind="guard" x="-3569" y="-3366">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3569" y="-3349">tick = 0, reach_home_bay()</label>
+			<nail x="-3595" y="-3366"/>
+			<nail x="-2643" y="-3366"/>
 		</transition>
 		<transition id="id10">
 			<source ref="id4"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3145" y="-3306">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN) &amp;&amp; !game_won</label>
-			<label kind="assignment" x="-2983" y="-3281">tick = 0</label>
+			<label kind="guard" x="-3145" y="-3281">tick &gt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
+			<label kind="assignment" x="-3145" y="-3264">tick = 0</label>
 			<nail x="-2652" y="-3281"/>
 			<nail x="-3179" y="-3281"/>
 		</transition>
 		<transition id="id11">
 			<source ref="id0"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-3085" y="-3111">kill_frog?</label>
-			<label kind="assignment" x="-3119" y="-3094">tick = 0, lives--</label>
+			<label kind="synchronisation" x="-3128" y="-3119">kill_frog?</label>
+			<label kind="assignment" x="-3128" y="-3102">tick = 0, lives--</label>
 			<nail x="-3136" y="-3119"/>
 			<nail x="-2949" y="-3119"/>
 		</transition>
 		<transition id="id12">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3502" y="-3102">!on_finish_lane()</label>
-			<label kind="synchronisation" x="-3468" y="-3077">frog_moved!</label>
-			<label kind="assignment" x="-3570" y="-3060">tick = 0,frog_on_diving_turtle = false</label>
-			<nail x="-3578" y="-3077"/>
-			<nail x="-3238" y="-3077"/>
+			<label kind="guard" x="-3586" y="-3128">!on_finish_lane()</label>
+			<label kind="synchronisation" x="-3586" y="-3111">frog_moved!</label>
+			<label kind="assignment" x="-3586" y="-3094">tick = 0,frog_on_diving_turtle = false</label>
+			<nail x="-3603" y="-3077"/>
+			<nail x="-3247" y="-3077"/>
 		</transition>
 		<transition id="id13">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="guard" x="-3544" y="-3247">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
-			<label kind="assignment" x="-3442" y="-3213">move()</label>
+			<label kind="guard" x="-3578" y="-3221">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
+			<label kind="assignment" x="-3578" y="-3204">move()</label>
 			<nail x="-3247" y="-3221"/>
-			<nail x="-3578" y="-3221"/>
+			<nail x="-3603" y="-3221"/>
 		</transition>
 	</template>
 	<template>
@@ -727,9 +722,9 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle==true)</formula>
+			<formula>E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle==true &amp;&amp; F.Dead)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-03 18:58:45 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-13 17:26:58 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>

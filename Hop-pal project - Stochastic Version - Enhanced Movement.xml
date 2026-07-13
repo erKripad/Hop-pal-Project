@@ -173,7 +173,7 @@ PosY frog_y = FROG_SPAWN_Y;
 
 PosX lane_shift_array[GRID_H] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-int[0,MAX_LEVELS] level = 0;
+int[1,MAX_LEVELS] level = 1;
 Score score = 0;
 
 clock global_time;
@@ -347,7 +347,7 @@ void reset_frog() {
 
 
 int get_level_time() {
-    int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * level);
+    int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * (level-1));
     return level_time &gt; 0 ? level_time : 0;
 }
 
@@ -517,7 +517,6 @@ int[0,5] prob(Direction dx, Direction dy) {
     if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == W) return 0;
     if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == D &amp;&amp; diving_turtles_are_submerged) return 0;
     if (LANE_STRUCTURES[next_frog_y][(2*LANE_W + next_frog_x - lane_direction_array[next_frog_y]   - lane_shift_array[next_frog_y]) % LANE_W] == V) return 0;
-    if (LANE_STRUCTURES[next_frog_y][(2*LANE_W + next_frog_x - 2*lane_direction_array[next_frog_y] - lane_shift_array[next_frog_y]) % LANE_W] == V) return 0;
     if (LANE_STRUCTURES[next_frog_y][(LANE_W + next_frog_x - lane_shift_array[next_frog_y]) % LANE_W] == D &amp;&amp; diving_turtles_are_submerging) return 0;
 
     // ── Soft weights ──────────────────────────────────────────────────────
@@ -2159,6 +2158,10 @@ Span of displayed sample: [3861, 4899]
 Mean estimate of displayed sample: 4369.34 ± 11.3437 (95% CI)</comment>
 				</plot>
 			</result>
+		</query>
+		<query>
+			<formula>simulate [&lt;=5300; 2000] {F.lives, level}</formula>
+			<comment/>
 		</query>
 	</queries>
 </nta>
