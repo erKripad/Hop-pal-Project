@@ -63,7 +63,7 @@ The following assumptions are made on the specifications:
     respawn cooldown. As a consequence, the last playable run starts with a game 
     timer of 2 seconds, during which Frogger is bound to die, since the respawn 
     \item Frogger cannot move outside the visible grid. 
-    \item Levels are indexed starting from zero.
+    \item Levels are indexed starting from one.
 \end{itemize}
 
 After further context clarifications with the professor we also defined the following edge cases or ambiguous situations:
@@ -291,7 +291,7 @@ probability of each direction.
     \label{fig:froggerStochasticImage}
 \end{figure}
 
-\subsubsection{Vehicle Lane}
+\subsubsection{Truck Lane}
 In the deterministic template, the lane moved on a fixed rate as soon as the internal clock
 reached \texttt{speed}. Here,
 \textbf{Wait} instead carries a rate of exponential \texttt{1:speed}, i.e.\
@@ -301,7 +301,7 @@ $Pr(t) = 1 - e^{-t/\texttt{speed}}$.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{images/vehicle_lane_stochastic.jpeg}
-    \caption{Vehicle Lane Template -- Stochastic Variation}
+    \caption{Truck Lane Template -- Stochastic Variation}
     \label{fig:vehicleStochasticImage}
 \end{figure}
 
@@ -385,7 +385,7 @@ checked to be a log (\texttt{L}).
 \subsubsection*{Frogger can die riding a diving turtle that transitions to the submerged state}
 \[ (\textrm{VII}) : \quad \exists \Diamond \; \big( 
    \textit{diving\_turtles\_are\_submerged} \;\wedge\; 
-   \textit{frog\_on\_diving\_turtle} \big) \]
+   \textit{frog\_on\_diving\_turtle} \;\wedge\; F.Dead\big) \]
 There exists a path on which Frogger is standing on a diving-turtle group at 
 the moment it enters the submerged phase, which causes the cell to become open 
 water and the frog to drown. This checks the interaction between the 
@@ -478,9 +478,9 @@ that Frogger either moves or stays still, but never both.
 \subsubsection{Context-Aware Policy Analysis}
 
 We simulated the policy with
-\texttt{Pr[<=10000; 1000](<>level==12)}, estimating, over
+\texttt{Pr[<=10000; 1000](<>level==13)}, estimating, over
 1000 runs bounded at 10000 time units, the probability that
-Frogger reaches level 12 obtaining the following results.
+Frogger reaches level 13 obtaining the following results.
 
 \begin{figure}[H]
     \centering
@@ -503,16 +503,16 @@ Frogger reaches level 12 obtaining the following results.
 
 \textbf{Level-completion probability.} The Statistical
 Model Checking estimate for
-\texttt{Pr[<=10000;\allowbreak1000](<>level>=12)}, shown in
-Figure~\ref{fig:CPDImage}, is $0.78 \pm 0.03$ (95\% CI):
-the context-aware policy reaches level 12 or beyond in
-roughly 78\% of the 1000 runs, a substantial improvement
+\texttt{Pr[<=10000;\allowbreak1000](<>level>=13)}, shown in
+Figure~\ref{fig:CPDImage}, is $0.89 \pm 0.03$ (95\% CI):
+the context-aware policy reaches level 13 or beyond, considering level 14 as the maximum reachable level, in
+roughly 89.18\% of the 1000 runs, a substantial improvement
 over the fixed weighted policy.
 
 \textbf{Timing distribution.} The density
-(Figure~\ref{fig:PDDImage}) shows that, when level 12 is
-reached, it happens predominantly between $t \approx 4050$
-and $t \approx 4750$.
+(Figure~\ref{fig:PDDImage}) shows that, when level 13 is
+reached, it happens predominantly between $t \approx 3900$
+and $t \approx 4200$.
 
 \begin{figure}[H]
     \centering
@@ -538,9 +538,9 @@ Figure~\ref{fig:CPDMaxLevelImage} shows the cumulative
 distribution of the maximum level reached within each run
 (\texttt{E[<=8000;1000](max: level)}). The curve rises
 sharply and is concentrated in a narrow band around level
-11--13, consistent with the estimated expected value of
-$11.84 \pm 0.03$ (95\% CI): on average, the context-aware
-policy takes Frogger almost all the way to level 12
+12--14, consistent with the estimated expected value of
+$12.98 \pm 0.03$ (95\% CI): on average, the context-aware
+policy takes Frogger almost all the way to level 13
 before the simulation bound is reached, with little
 variance across runs.
 
@@ -550,6 +550,24 @@ distribution of the maximum score reached within each run
 (\texttt{E[<=8000;1000](max: score)}), with an estimated
 expected value of $2329 \pm 5$ (95\% CI), consistent with
 the sustained progress described above.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/lives-levels-plot.png}
+    \caption{Distribution of \texttt{level} and \texttt{F.lives} over time
+    across 5000 SMC simulation runs.}
+    \label{fig:LevelLivesImage}
+\end{figure}
+
+\textbf{Level and lives progression.}
+Figure~\ref{fig:LevelLivesImage} overlays the \texttt{level} and
+\texttt{F.lives} traces of 5000 simulation runs. Levels advance in
+discrete steps early on, with the spread
+widening at higher levels as variance accumulates. Most of the deaths are concentrated
+in the final stages, while the majority of runs still manage to reach
+level 14, the last reachable level; this confirms that the
+enhanced stochastic policy yields to optimum results, allowing Frogger
+to sustain progress through most of the game while maintaining most of its lives.
 
 \newpage
 \section{Conclusion}
