@@ -310,17 +310,6 @@ void reset() {
     timer = 0;
 }
 
-/*
- * Handles arrival in a free home bay.
- * The bay is marked, points are awarded, and Frogger is respawned.
- * If this was the fifth occupied bay, the next-level routine is triggered.
- */
-void reach_home_bay() {
-    add_score(HOME_BAY_SCORE);
-    set_current_home_bay_as_occupied();
-    reset();
-}
-
 
 // ------------------------------ Transition called functions --------------------------------
 
@@ -342,10 +331,15 @@ bool can_move() {
 
 /*
  * Performs the symbolic upward move and awards the movement point.
+ * If frogger moves into a non-occupied home bay, it is set as reached
  */
 void move() {
     frog_y = frog_y + 1;
     add_score(MOVE_UP_SCORE);
+    if (on_finish_lane()) {
+        set_current_home_bay_as_occupied();
+        add_score(HOME_BAY_SCORE);
+    }
 }
 </declaration>
 		<location id="id0" x="-3000" y="-3085">
@@ -372,7 +366,7 @@ void move() {
 			<source ref="id1"/>
 			<target ref="id3"/>
 			<label kind="guard" x="-3442" y="-2949">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3442" y="-2932">reach_home_bay(), add_score(LEVEL_COMPLETE_SCORE)</label>
+			<label kind="assignment" x="-3442" y="-2932">reset(), add_score(LEVEL_COMPLETE_SCORE)</label>
 			<nail x="-3450" y="-2916"/>
 		</transition>
 		<transition id="id6">
@@ -401,7 +395,7 @@ void move() {
 			<source ref="id1"/>
 			<target ref="id4"/>
 			<label kind="guard" x="-3442" y="-3255">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3442" y="-3238">tick = 0, reach_home_bay()</label>
+			<label kind="assignment" x="-3442" y="-3238">tick = 0, reset()</label>
 			<nail x="-3451" y="-3255"/>
 		</transition>
 		<transition id="id10">
@@ -702,7 +696,7 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 		<query>
 			<formula>E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == 3)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-03 18:43:18 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-16 23:32:08 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
@@ -777,10 +771,6 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 		</query>
 		<query>
 			<formula>A[]((F.lives == 4 &amp;&amp; frog_y == 1 &amp;&amp; LANE_STRUCTURES[1][(LANE_W + frog_x - L1.shift) % LANE_W] == V &amp;&amp; L1.killed) imply F.Dead)</formula>
-			<comment/>
-		</query>
-		<query>
-			<formula/>
 			<comment/>
 		</query>
 	</queries>
