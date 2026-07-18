@@ -173,7 +173,7 @@ The design was made around its possible states:
     From here, if at least one life remains, the frog waits for the respawn timing and then returns 
     to \textbf{Idle}. If \texttt{lives <= 0}, it transitions to \textbf{GameOver} instead.
     
-    \item \textbf{GameOver}: the final state of the automaton, entered when the frog has no lives left.
+    \item \textbf{GameOver}: the final state of the automaton, entered when the frog has no lives left or when a level is completed.
 \end{enumerate}
 
 \subsection{Vehicle Lane}
@@ -553,21 +553,25 @@ the sustained progress described above.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{images/lives-levels-plot.png}
+    \includegraphics[width=0.8\textwidth]{images/lives-levels-plot.png}
     \caption{Distribution of \texttt{level} and \texttt{F.lives} over time
-    across 5000 SMC simulation runs.}
+    across 2000 SMC simulation runs.}
     \label{fig:LevelLivesImage}
 \end{figure}
 
 \textbf{Level and lives progression.}
 Figure~\ref{fig:LevelLivesImage} overlays the \texttt{level} and
-\texttt{F.lives} traces of 5000 simulation runs. Levels advance in
+\texttt{F.lives} traces of 2000 simulation runs. Levels advance in
 discrete steps early on, with the spread
 widening at higher levels as variance accumulates. Most of the deaths are concentrated
 in the final stages, while the majority of runs still manage to reach
 level 14, the last reachable level; this confirms that the
 enhanced stochastic policy yields to optimum results, allowing Frogger
 to sustain progress through most of the game while maintaining most of its lives.
+Figure~\ref{fig:LevelLivesImage} further reveals a physical wall beyond which Frogger is unable to survive, 
+indicating that this late-stage mortality does not stem from a deficiency in the movement policy itself, 
+but from a hard constraint imposed by the game's design: once level 14 is reached, Frogger is invariably 
+doomed to die shortly after respawning.
 
 \newpage
 \section{Conclusion}
