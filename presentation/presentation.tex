@@ -219,7 +219,7 @@ The design was made around its possible states:
     From here, if at least one life remains, the frog waits for the respawn timing and then returns 
     to \textbf{Idle}. If \texttt{lives <= 0}, it transitions to \textbf{GameOver} instead.
     
-    \item \textbf{GameOver}: the final state of the automaton, entered when the frog has no lives left or when a level is completed.
+    \item \textbf{GameOver}: the final state of the automaton, entered when the frog has no lives left or when the level is completed.
 \end{enumerate}
 
 \subsection{Vehicle Lane}
@@ -354,7 +354,7 @@ $Pr(t) = 1 - e^{-t/\texttt{speed}}$.
 \newpage
 \section{Properties Verification}
 In this seciton the properties specified by the specifications are verified through the UPPAAL verifier, in which 
-the queries can be found.
+the queries can be found. Execution times were derived from benchmarks conducted on a low-cost, consumer-grade laptop.
 
 \subsection{Symbolic Verification}
 The following properties are expressed in TCTL, a simplified version is used in UPPAAL for the formal verification. 
@@ -383,8 +383,7 @@ an object to leave its lane.
 \hfill \textit{Execution time: $\sim$5s}
 
 \subsubsection*{Frogger can reach the home bay in position (0,12)–(1,12)}
-\[ (\textrm{III}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 12 
-   \;\wedge\; home\_bays[0] = true \big) \]
+\[ (\textrm{III}) : \quad \exists \Diamond \; \big(home\_bays[0] = true \big) \]
 It's saying that exists at least one path that eventually will lead to 
 Frogger reaching a home bay cell.
 
@@ -392,7 +391,7 @@ Frogger reaching a home bay cell.
 
 \subsubsection*{Frogger can score 17 points reaching the home bay in position (8,12)–(9,12)}
 \[ (\textrm{IV}) : \quad \exists \Diamond \; \big(  home\_bays[2] = true 
-   \;\wedge\; \textit{frog\_y} = 12 \;\wedge\; \textit{score} = 17 \big) \]
+   \;\wedge\; \textit{score} = 17 \big) \]
 A refinement of the previous property: there exists a path on which Frogger 
 reaches the home bay at $(8,12)$--$(9,12)$ while holding exactly 17 points.
 
