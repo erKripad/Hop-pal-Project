@@ -130,7 +130,7 @@ const Cell LANE_STRUCTURES[GRID_H][LANE_W] = {
 
 /*
  * Per-lane movement periods.
- * Static lanes have speed 0 and should not be instantiated as moving lanes.
+ * Static lanes have speed 0 and are not instantiated.
  */
 const int lane_speed_array[GRID_H] = {0, 3, 10, 5, 4, 7, 0, 6, 2, 7, 2, 2, 0};
 
@@ -198,8 +198,8 @@ bool frog_on_diving_turtle = false;
  *   16 / 4 = 4, 17 / 4 = 4
  *
  * Precondition:
- *   This function should only be called after verifying that the frog
- *   x-coordinate is an H cell. Wall cells such as x = 2 or x = 3 would also map
+ *   This function should only be called after verifying that the frog coordinates
+ *   (frog_x,frog_y+1) are an H cell. Wall cells such as x = 2 or x = 3 would also map
  *   to bay 0, but they are not valid home bay cells.
  *
  * Returns:
@@ -465,7 +465,7 @@ void move_lane() {
  * structure, where V is encoded as a true value and S as false.
  */
 bool collision() {
-    return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W] == V;
+    return LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W] == V;
 }
 </declaration>
 		<location id="id14" x="-195" y="-51">
@@ -487,7 +487,7 @@ bool collision() {
 		<transition id="id17">
 			<source ref="id14"/>
 			<target ref="id15"/>
-			<label kind="guard" x="-68" y="-136">frog_y == lane_y</label>
+			<label kind="guard" x="-51" y="-136">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-42" y="-110">frog_moved?</label>
 			<nail x="-119" y="-110"/>
 			<nail x="153" y="-110"/>
@@ -534,7 +534,7 @@ PosX shift = 0;
  * including the two off-screen cells.
  */
 void move_lane() {
-    if (frog_y == lane_y) {
+    if (frog_y == row) {
         frog_x = (LANE_W + frog_x + direction) % LANE_W;
     }
 
@@ -556,14 +556,16 @@ void move_lane() {
  * nearby turtles, while making the whole group unsafe when submerged.
  */
 bool drowning() {
-    int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
-    return (frog_y == lane_y) &amp;&amp; (cell == W || (cell == D &amp;&amp; diving_turtles_are_submerged));
+    Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W];
+    return cell == W || (cell == D &amp;&amp; diving_turtles_are_submerged);
 }
 
 
-
+/*
+ * Checks whether frog is on a diving turtle. 
+ */
 void check_frog_on_diving_turtle() {
-    int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
+    Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W];
     frog_on_diving_turtle = (cell == D);
 }</declaration>
 		<location id="id20" x="-6358" y="-5788">
@@ -595,7 +597,7 @@ void check_frog_on_diving_turtle() {
 		<transition id="id24">
 			<source ref="id20"/>
 			<target ref="id21"/>
-			<label kind="guard" x="-6230" y="-5873">frog_y == lane_y</label>
+			<label kind="guard" x="-6213" y="-5873">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6205" y="-5848">frog_moved?</label>
 			<nail x="-6282" y="-5847"/>
 			<nail x="-6010" y="-5847"/>
@@ -611,7 +613,7 @@ void check_frog_on_diving_turtle() {
 		<transition id="id26">
 			<source ref="id20"/>
 			<target ref="id21"/>
-			<label kind="guard" x="-6230" y="-5950">frog_y == lane_y</label>
+			<label kind="guard" x="-6213" y="-5950">frog_y == lane_y</label>
 			<label kind="synchronisation" x="-6247" y="-5924">diving_turtles_submerged?</label>
 			<nail x="-6299" y="-5924"/>
 			<nail x="-5993" y="-5924"/>
@@ -673,18 +675,23 @@ clock tick;</declaration>
 			<nail x="-637" y="-163"/>
 		</transition>
 	</template>
-	<system>
+	<system>// L1 is a static lane, according to our abstraction it isn't instantiated.
+
 L1 = VehicleLane(1);
 L2 = VehicleLane(2);
 L3 = VehicleLane(3);
 L4 = VehicleLane(4);
 L5 = VehicleLane(5);
 
+// L6 is a static lane, according to our abstraction it isn't instantiated.
+ 
 L7 = FloatingLane(7);
 L8 = FloatingLane(8);
 L9 = FloatingLane(9);
 L10 = FloatingLane(10);
 L11 = FloatingLane(11);
+
+// L12 is a static lane, according to our abstraction it isn't instantiated.
 
 DTC = DivingTurtleCycle();
 
@@ -694,14 +701,105 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<option key="--diagnostic" value="0"/>
 		<query>
-			<formula>E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == 3)</formula>
+			<formula>A[] (not deadlock) // Without instantiating Frogger</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-16 23:32:08 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:13:54 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (timer == 100 &amp;&amp; F.lives == 5 &amp;&amp; 
+			<formula>A[](L1.row == 1) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:10 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L2.row == 2) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:21 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L3.row == 3) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:32 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L4.row == 4) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:43 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L5.row == 5) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:53 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L7.row == 7) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:04 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L8.row == 8) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:14 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L9.row == 9) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:23 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L10.row == 10) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:33 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[](L11.row == 11) // Without instantiating Frogger</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:16:33 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt;(home_bay_occupied[0]) </formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:18:38 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (score == 17 &amp;&amp; home_bay_occupied[2])</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:21:09 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == FROG_MAX_LIVES - 2)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:21:28 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; 
 	   (
 	    (frog_y == 8 &amp;&amp; LANE_STRUCTURES[8][(LANE_W + frog_x - L8.shift) % LANE_W]) == L || 
 	    (frog_y == 9 &amp;&amp; LANE_STRUCTURES[9][(LANE_W + frog_x - L9.shift) % LANE_W]) == L || 
@@ -709,69 +807,16 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	   )
 	 )</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-03 17:58:58 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:23:33 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle==true &amp;&amp; F.Dead)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-13 17:26:58 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-18 21:26:35 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
-		</query>
-		<query>
-			<formula>A[] (not deadlock) </formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-03 18:03:23 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L5.row == 5)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-03 18:15:36 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L7.row == 7)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:21 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L8.row == 8)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:23 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L9.row == 9)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-22 18:11:40 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L10.row == 10)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-22 18:12:29 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[](L11.row == 11)</formula>
-			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-06-22 18:10:02 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
-		</query>
-		<query>
-			<formula>A[]((F.lives == 4 &amp;&amp; frog_y == 1 &amp;&amp; LANE_STRUCTURES[1][(LANE_W + frog_x - L1.shift) % LANE_W] == V &amp;&amp; L1.killed) imply F.Dead)</formula>
-			<comment/>
 		</query>
 	</queries>
 </nta>
