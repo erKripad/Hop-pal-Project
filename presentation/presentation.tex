@@ -89,10 +89,56 @@ The protagonist of the game, it starts with 5 lives and must reach all 5 home ba
 Models a road lane populated by moving vehicles of varying speed and size. 
 Each lane defines a fixed direction of travel, and a collision with the frog results in the loss of a life.
 
+\begin{figure}[H]
+    \centering
+    \begin{minipage}[t]{0.35\textwidth}
+        \centering
+        \parbox[t][1.25cm][c]{\linewidth}{%
+            \centering
+            \includegraphics[width=\linewidth]{images/vehicle_lanes_graphic.png}%
+        }
+        \caption{Vehicle lane graphic from the game}
+        \label{fig:VehicleLaneGraphicImage}
+    \end{minipage}
+    \hspace{0.05\textwidth}
+    \begin{minipage}[t]{0.50\textwidth}
+        \centering
+        \parbox[t][1.25cm][c]{\linewidth}{%
+            \centering
+            \includegraphics[width=\linewidth]{images/vehicle_lanes_matrix.png}%
+        }
+        \caption{Vehicle lane matrix representation}
+        \label{fig:VehicleLaneMatrixImage}
+    \end{minipage}
+\end{figure}
+
 \subsubsection*{Floating Lane}
 Models a river lane composed of floating objects, such as logs and turtles. 
 When the frog stands on a floating object, it is carried along with it. 
 Landing on an empty water cell results in immediate death.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}[t]{0.35\textwidth}
+        \centering
+        \parbox[t][1.25cm][c]{\linewidth}{%
+            \centering
+            \includegraphics[width=\linewidth]{images/floating_lanes_graphic.png}%
+        }
+        \caption{Floating lane graphic from the game}
+        \label{fig:FloatingLaneGraphicImage}
+    \end{minipage}
+    \hspace{0.05\textwidth}
+    \begin{minipage}[t]{0.50\textwidth}
+        \centering
+        \parbox[t][1.25cm][c]{\linewidth}{%
+            \centering
+            \includegraphics[width=\linewidth]{images/floating_lanes_matrix.png}%
+        }
+        \caption{Floating lane matrix representation}
+        \label{fig:FloatingLaneMatrixImage}
+    \end{minipage}
+\end{figure}
 
 \subsubsection*{Diving Turtles Manager}
 Manages the submersion cycle of diving turtles, cycling through the states 
@@ -320,6 +366,8 @@ Verified on the system without the Frogger automaton, this property states that
 along every path the model never reaches a deadlock state, i.e. the lanes and 
 the diving-turtle cycle can always progress.
 
+\hfill \textit{Execution time: $\sim$10s}
+
 \subsubsection*{All vehicles and floating objects can only move inside their predefined row}
 \[ (\textrm{II}) : \quad \forall \square \; \big( \forall i \;\; 
    \textit{L}[i].\textit{row} = i \big) \]
@@ -332,17 +380,23 @@ Nonetheless, it can still be explicitly modelled as ``the lane never changes
 its row'' and verified, in order to confirm that no unexpected behaviour causes 
 an object to leave its lane.
 
+\hfill \textit{Execution time: $\sim$5s}
+
 \subsubsection*{Frogger can reach the home bay in position (0,12)–(1,12)}
 \[ (\textrm{III}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 12 
    \;\wedge\; home\_bays[0] = true \big) \]
 It's saying that exists at least one path that eventually will lead to 
 Frogger reaching a home bay cell.
 
+\hfill \textit{Execution time: $\sim$5s}
+
 \subsubsection*{Frogger can score 17 points reaching the home bay in position (8,12)–(9,12)}
 \[ (\textrm{IV}) : \quad \exists \Diamond \; \big(  home\_bays[2] = true 
    \;\wedge\; \textit{frog\_y} = 12 \;\wedge\; \textit{score} = 17 \big) \]
 A refinement of the previous property: there exists a path on which Frogger 
 reaches the home bay at $(8,12)$--$(9,12)$ while holding exactly 17 points.
+
+\hfill \textit{Execution time: $\sim$10s}
 
 \subsubsection*{Frogger can reach a yellow cell in row 6 after the player has lost two lives}
 \[ (\textrm{V}) : \quad \exists \Diamond \; \big( \textit{frog\_y} = 6 
@@ -351,6 +405,8 @@ It states that there exists a path on which Frogger
 reaches a yellow cell, the safe lane
 between the road and the river, after already having
 lost exactly two lives.
+
+\hfill \textit{Execution time: $\sim$10s}
 
 \subsubsection*{Frogger may stand on a log (with five lives) 10 seconds
 after the game starts}
@@ -382,6 +438,7 @@ subtracted first, and \texttt{LANE\_W} added back before taking the
 modulo, so the index never becomes negative. The resulting cell is then
 checked to be a log (\texttt{L}).
 
+\hfill \textit{Execution time: $\sim$2min}
 \subsubsection*{Frogger can die riding a diving turtle that transitions to the submerged state}
 \[ (\textrm{VII}) : \quad \exists \Diamond \; \big( 
    \textit{diving\_turtles\_are\_submerged} \;\wedge\; 
@@ -391,6 +448,8 @@ the moment it enters the submerged phase, which causes the cell to become open
 water and the frog to drown. This checks the interaction between the 
 \textbf{DivingTurtleCycle} and the \textbf{FloatingLane} through the 
 \texttt{diving\_turtles\_submerged} channel.
+
+\hfill \textit{Execution time: $\sim$15s}
 
 \subsection{Stochastic Analysis}
 This section evaluates the stochastic variant introduced above through
