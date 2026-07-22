@@ -559,7 +559,7 @@ int[0,1] cant_move() {
 </declaration>
 		<location id="id0" x="-3331" y="-3944">
 			<name x="-3366" y="-3927">Idle</name>
-			<label kind="invariant" x="-3458" y="-3910">tick &lt;= MOVE_COOLDOWN &amp;&amp; 
+			<label kind="invariant" x="-3442" y="-3910">tick &lt;= MOVE_COOLDOWN &amp;&amp; 
 timer &lt;= get_level_time()</label>
 		</location>
 		<location id="id1" x="-4046" y="-3944">
@@ -582,10 +582,10 @@ timer &lt;= get_level_time()</label>
 		<transition id="id6">
 			<source ref="id5"/>
 			<target ref="id0"/>
-			<label kind="assignment" x="-3434" y="-3986">tick = 0</label>
-			<label kind="probability" x="-3587" y="-3986">1 * cant_move()</label>
-			<nail x="-3586" y="-3987"/>
-			<nail x="-3356" y="-3987"/>
+			<label kind="assignment" x="-3434" y="-4003">tick = 0</label>
+			<label kind="probability" x="-3578" y="-4003">1 * cant_move()</label>
+			<nail x="-3586" y="-4004"/>
+			<nail x="-3356" y="-4004"/>
 		</transition>
 		<transition id="id7">
 			<source ref="id2"/>
@@ -643,7 +643,8 @@ timer &lt;= get_level_time()</label>
 		<transition id="id14" controllable="false">
 			<source ref="id0"/>
 			<target ref="id5"/>
-			<label kind="guard" x="-3586" y="-3944">tick &gt;= MOVE_COOLDOWN</label>
+			<label kind="guard" x="-3578" y="-3961">tick &gt;= MOVE_COOLDOWN &amp;&amp;
+timer &lt; get_level_time()</label>
 		</transition>
 		<transition id="id15">
 			<source ref="id0"/>

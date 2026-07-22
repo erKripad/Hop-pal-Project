@@ -63,28 +63,19 @@ const Direction RIGHT = 1;
 const Direction LEFT = -1;
 const Direction SAME = 0;
 
-
 /*
  * Logical cell encoding used inside LANE_STRUCTURES.
  *
- * The same numeric values are intentionally reused in different contexts:
- *   0 means "no obstacle/support" in moving lanes, and also represents safe
- *     static cells or valid home cells when the row semantics already disambiguate.
- *   1 means "blocking/supporting object", depending on the lane type.
- *   2 identifies diving-turtle support, which becomes unsafe only while the
- *     diving-turtle cycle is in the submerged phase.
- *
- * For this reason, these constants should be interpreted together with the row
- * being checked, not as globally unique terrain identifiers.
  */
-const Cell S = 0; // safe/static street cell
-const Cell W = 1; // water cell without floating support
-const Cell V = 2; // vehicle-covered cell
-const Cell L = 3; // log-supported cell
-const Cell T = 4; // turtle-supported cell
-const Cell D = 5; // diving-turtle-supported cell
-const Cell X = 6; // wall between home bays
-const Cell H = 7; // valid home-bay cell
+const int S = 0; // safe/static street cell
+const int W = 1; // water cell without floating support
+const int V = 2; // vehicle-covered cell
+const int L = 3; // log-supported cell
+const int T = 4; // turtle-supported cell
+const int D = 5; // diving-turtle-supported cell
+const int X = 6; // wall between home bays
+const int H = 7; // valid home-bay cell
+
 
 /*
  * Diving-turtle phase durations.
@@ -173,8 +164,6 @@ PosY frog_y = FROG_SPAWN_Y;
 
 int[1,MAX_LEVELS] level = 1;
 Score score = 0;
-
-clock global_time;
 
 /*
  * Shared dynamic flags.
@@ -319,6 +308,17 @@ broadcast chan diving_turtles_submerged;</declaration>
 	<template>
 		<name x="5" y="5">Frogger</name>
 		<declaration>// ============================== FROG DECLARATIONS ==============================
+
+/*
+ * The player controller, and the only automaton with probabilistic transitions (the only ones in the model). 
+ * In the Idle state it waits, constrained by a dual invariant on tick (move cooldown) and timer (level time limit). 
+ * Once the cooldown expires it moves to a branchpoint, from which a move in one of the 4 directions fires 
+ * with fixed probability (0.5 up, 0.2 right, 0.2 left, 0.1 down), leading to the committed state Move. 
+ * There it checks whether it's on a free home bay (score, possible next level, respawn) or
+ * a normal cell (broadcasts frog_moved! and returns to Idle). The Dead and Respawn states handle the loss of 
+ * a life (on timeout or kill_frog?) and game over once lives reaches zero.
+ */
+
 // Local timing and actions for the symbolic Frogger controller.
 
 // ------------------------------ Local Variables --------------------------------
@@ -341,7 +341,10 @@ void reset_frog() {
     timer = 0;
 }
 
-
+/*
+ * Obtain the maximum time frogger has to reach an home bay
+ * based on the currente level being played.
+ */
 int get_level_time() {
     int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * (level-1));
     return level_time &gt; 0 ? level_time : 0;
@@ -350,10 +353,6 @@ int get_level_time() {
 /*
  * Starts the next level according to the full game mechanics:
  * awards the level-completion bonus, clears home bays, and reduces the timeout.
- *
- * Possible issue:
- *   The Symbolic version requires playing only the first level. This function
- *   keeps the multi-level rule active instead of stopping after level completion.
  */
 void load_next_level() {
     add_score(LEVEL_COMPLETE_SCORE);
@@ -403,7 +402,7 @@ void move_frog(Direction dx, Direction dy) {
     if (frog_x &lt; 0 || frog_x &gt;= GRID_W) return;
 
     // check if frog is trying exit the map
-    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) {return;}
+    if (frog_x + dx &lt; 0 || frog_x + dx &gt;= GRID_W || frog_y + dy &lt; 0 || frog_y + dy &gt;= GRID_H) return;
 
     // check if frog can move into the desired cell
     if (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == X || (LANE_STRUCTURES[frog_y + dy][frog_x + dx] == H &amp;&amp; is_current_home_bay_occupied())) return;
@@ -420,8 +419,8 @@ void move_frog(Direction dx, Direction dy) {
 			<label kind="invariant" x="-3458" y="-3910">tick &lt;= MOVE_COOLDOWN &amp;&amp; 
 timer &lt;= get_level_time()</label>
 		</location>
-		<location id="id1" x="-3884" y="-3944">
-			<name x="-3935" y="-3953">Move</name>
+		<location id="id1" x="-3910" y="-3944">
+			<name x="-3961" y="-3953">Move</name>
 			<committed/>
 		</location>
 		<location id="id2" x="-3008" y="-3944">
@@ -435,7 +434,7 @@ timer &lt;= get_level_time()</label>
 			<name x="-3348" y="-4123">Respawn</name>
 			<label kind="invariant" x="-3348" y="-4140">tick &lt;= (RESPAWN_TIME - MOVE_COOLDOWN)</label>
 		</location>
-		<branchpoint id="id5" x="-3603" y="-3944"/>
+		<branchpoint id="id5" x="-3629" y="-3944"/>
 		<init ref="id4"/>
 		<transition id="id6">
 			<source ref="id2"/>
@@ -453,47 +452,48 @@ timer &lt;= get_level_time()</label>
 		<transition id="id8">
 			<source ref="id1"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-3910" y="-4131">on_home_bay()</label>
-			<label kind="assignment" x="-3910" y="-4114">reach_home_bay()</label>
-			<nail x="-3926" y="-4021"/>
-			<nail x="-3926" y="-4089"/>
+			<label kind="guard" x="-3936" y="-4131">on_home_bay()</label>
+			<label kind="assignment" x="-3936" y="-4114">reach_home_bay()</label>
+			<nail x="-3952" y="-4021"/>
+			<nail x="-3952" y="-4089"/>
 		</transition>
 		<transition id="id9">
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-3850" y="-4020">move_frog(SAME, UP)</label>
-			<label kind="probability" x="-3655" y="-4020">0.5</label>
-			<nail x="-3628" y="-4021"/>
-			<nail x="-3858" y="-4021"/>
+			<label kind="assignment" x="-3876" y="-4020">move_frog(SAME, UP)</label>
+			<label kind="probability" x="-3681" y="-4020">0.5</label>
+			<nail x="-3654" y="-4021"/>
+			<nail x="-3884" y="-4021"/>
 		</transition>
 		<transition id="id10">
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-3859" y="-3978">move_frog(RIGHT, SAME)</label>
-			<label kind="probability" x="-3655" y="-3978">0.2</label>
-			<nail x="-3628" y="-3978"/>
-			<nail x="-3858" y="-3978"/>
+			<label kind="assignment" x="-3885" y="-3978">move_frog(RIGHT, SAME)</label>
+			<label kind="probability" x="-3681" y="-3978">0.2</label>
+			<nail x="-3654" y="-3978"/>
+			<nail x="-3884" y="-3978"/>
 		</transition>
 		<transition id="id11">
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-3850" y="-3884">move_frog(LEFT, SAME)</label>
-			<label kind="probability" x="-3655" y="-3884">0.2</label>
-			<nail x="-3628" y="-3868"/>
-			<nail x="-3850" y="-3868"/>
+			<label kind="assignment" x="-3876" y="-3884">move_frog(LEFT, SAME)</label>
+			<label kind="probability" x="-3681" y="-3884">0.2</label>
+			<nail x="-3654" y="-3868"/>
+			<nail x="-3876" y="-3868"/>
 		</transition>
 		<transition id="id12">
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-3850" y="-3927">move_frog(SAME, DOWN)</label>
-			<label kind="probability" x="-3655" y="-3927">0.1</label>
-			<nail x="-3628" y="-3910"/>
-			<nail x="-3858" y="-3910"/>
+			<label kind="assignment" x="-3876" y="-3927">move_frog(SAME, DOWN)</label>
+			<label kind="probability" x="-3681" y="-3927">0.1</label>
+			<nail x="-3654" y="-3910"/>
+			<nail x="-3884" y="-3910"/>
 		</transition>
 		<transition id="id13" controllable="false">
 			<source ref="id0"/>
 			<target ref="id5"/>
-			<label kind="guard" x="-3586" y="-3944">tick &gt;= MOVE_COOLDOWN</label>
+			<label kind="guard" x="-3612" y="-3961">tick &gt;= MOVE_COOLDOWN &amp;&amp;
+timer &lt; get_level_time()</label>
 		</transition>
 		<transition id="id14">
 			<source ref="id0"/>
@@ -520,11 +520,11 @@ timer &lt;= get_level_time()</label>
 		<transition id="id17">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3910" y="-3800">!on_home_bay()</label>
-			<label kind="synchronisation" x="-3909" y="-3783">frog_moved!</label>
-			<label kind="assignment" x="-3909" y="-3766">tick = 0, frog_on_diving_turtle = false</label>
-			<nail x="-3918" y="-3885"/>
-			<nail x="-3918" y="-3800"/>
+			<label kind="guard" x="-3936" y="-3800">!on_home_bay()</label>
+			<label kind="synchronisation" x="-3935" y="-3783">frog_moved!</label>
+			<label kind="assignment" x="-3935" y="-3766">tick = 0, frog_on_diving_turtle = false</label>
+			<nail x="-3944" y="-3885"/>
+			<nail x="-3944" y="-3800"/>
 			<nail x="-3331" y="-3800"/>
 		</transition>
 	</template>
@@ -532,6 +532,15 @@ timer &lt;= get_level_time()</label>
 		<name>VehicleLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// =========================== VEHICLE LANE DECLARATION =========================
+
+/* 
+ * Parametric template (lane_y) for road lanes with single vehicles. It deterministically
+ * alternates Wait (invariant tick &lt;= speed) and CheckFrog (committed): once speed elapses it advances 
+ * the lane via move_lane() (shift modulo LANE_W); on receiving frog_moved?, if Frogger is on the row 
+ * and colliding with a V cell, it broadcasts kill_frog!. 
+ * The lane's logical structure stays fixed in the global array — only the shift represents motion.
+ */
+
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -609,6 +618,15 @@ bool collision() {
 		<name>TruckLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// =========================== TRUCK LANE DECLARATION =========================
+
+/* 
+ * Same logic as VehicleLane (same movement, same collision check via inverse shift),
+ * but with stochastic advancement: instead of a deterministic time invariant on Wait, 
+ * it uses an exponentialrate 1:speed, so the waiting time between two advances is exponential
+ * rather than deterministic. It's the only automaton in the model with continuous stochastic timing, 
+ * reserved for trucks (presumably to differentiate their pattern from the other lanes).
+ */
+
 // Shared template for truck lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -686,6 +704,15 @@ bool collision() {
 		<name>FloatingLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// ========================== FLOATING LANE DECLARATION =========================
+
+/*
+ * Template for river lanes (logs/turtles). Same Wait/CheckFrog structure as VehicleLane,
+ * but here move_lane() also carries Frogger along (frog_x updated together with the shift)
+ * if it's on the row, simulating being carried by the floating object. 
+ * Instead of a collision check, drowning() checks whether the cell under Frogger is open water (empty cell)
+ * or a diving-turtle group that's submerged (D with diving_turtles_are_submerged true): in both cases it broadcasts kill_frog!.
+ */
+
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -693,12 +720,12 @@ const PosY row = lane_y;
 const Direction direction = lane_direction_array[lane_y];
 const int speed = lane_speed_array[lane_y];
 
-// ------------------------------ Local state ------------------------------
+// ------------------------------ Local state ----------------------------------
 
 clock tick;
 PosX shift = 0;
 
-// ------------------------------ Lane movement ------------------------------
+// ------------------------------ Lane movement --------------------------------
 
 /*
  * Advances the floating lane by one cell.
@@ -785,6 +812,16 @@ bool drowning() {
 	<template>
 		<name>DivingTurtleCycle</name>
 		<declaration>// ======================= DIVING TURTLE CYCLE DECLARATION ======================
+
+/*
+ * A global automaton, unique in its single instance, governing the deterministic,
+ * shared cycle of all diving turtles: Emerged → Diving → Submerged → Emerging → Emerged. 
+ * Stable phases (Emerged, Submerged) last DIVING_TURTLE_STABLE_STATE_TIMER, transition phases (Diving, Emerging)
+ * last DIVING_TURTLE_TRANSITION_STATE_TIMER. Only entry into Submerged broadcasts diving_turtles_submerged! and 
+ * updates the global flag diving_turtles_are_submerged, which is the only piece of information 
+ * the relevant FloatingLanes need to observe.
+ */
+
 // Deterministic global phase shared by all diving turtles.
 //
 // The template alternates emerged -&gt; diving -&gt; submerged -&gt; emerging.
