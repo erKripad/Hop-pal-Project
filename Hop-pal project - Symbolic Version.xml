@@ -42,20 +42,32 @@ const int MOVE_COOLDOWN = 1;                  // 1 tick
 const int RIGHT = 1;
 const int LEFT = -1;
 
+// ------------------------------ Bounded types ------------------------------
+
+/*
+ * Bounded integer types keep the symbolic state space finite.
+ * PosX ranges over the logical lane width, including the two off-screen cells.
+ */
+typedef int[0, LANE_W - 1] PosX;
+typedef int[0, GRID_H - 1] PosY;
+typedef int[0, FROG_MAX_LIVES] Lives;
+typedef int[0, MAX_SCORE] Score;
+typedef int[-1, 1] Direction;
+typedef int[0, 7] Cell;
+
 // ------------------------------ Cell encoding ------------------------------
 
 /*
  * Logical cell encoding used inside LANE_STRUCTURES.
- *
  */
-const int S = 0; // safe/static street cell
-const int W = 1; // water cell without floating support
-const int V = 2; // vehicle-covered cell
-const int L = 3; // log-supported cell
-const int T = 4; // turtle-supported cell
-const int D = 5; // diving-turtle-supported cell
-const int X = 6; // wall between home bays
-const int H = 7; // valid home-bay cell
+const Cell S = 0; // safe/static street cell
+const Cell W = 1; // water cell without floating support
+const Cell V = 2; // vehicle-covered cell
+const Cell L = 3; // log-supported cell
+const Cell T = 4; // turtle-supported cell
+const Cell D = 5; // diving-turtle-supported cell
+const Cell X = 6; // wall between home bays
+const Cell H = 7; // valid home-bay cell
 
 /*
  * Diving-turtle phase durations.
@@ -85,19 +97,6 @@ const int HOME_BAY_SPACING = 4;
 const int MOVE_UP_SCORE = 1;
 const int HOME_BAY_SCORE = 5;
 const int LEVEL_COMPLETE_SCORE = 100;
-
-// ------------------------------ Bounded types ------------------------------
-
-/*
- * Bounded integer types keep the symbolic state space finite.
- * PosX ranges over the logical lane width, including the two off-screen cells.
- */
-typedef int[0, LANE_W - 1] PosX;
-typedef int[0, GRID_H - 1] PosY;
-typedef int[0, FROG_MAX_LIVES] Lives;
-typedef int[0, MAX_SCORE] Score;
-typedef int[-1, 1] Direction;
-typedef int[0, 7] Cell;
 
 // ------------------------------ Lane structure ------------------------------
 
@@ -346,8 +345,8 @@ void move() {
 			<name x="-3051" y="-3093">Idle</name>
 			<label kind="invariant" x="-3178" y="-3076">timer &lt;= LEVEL_TIME</label>
 		</location>
-		<location id="id1" x="-3484" y="-3077">
-			<name x="-3535" y="-3086">Move</name>
+		<location id="id1" x="-3561" y="-3077">
+			<name x="-3612" y="-3086">Move</name>
 			<committed/>
 		</location>
 		<location id="id2" x="-2583" y="-3084">
@@ -365,9 +364,9 @@ void move() {
 		<transition id="id5">
 			<source ref="id1"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-3442" y="-2949">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3442" y="-2932">reset(), add_score(LEVEL_COMPLETE_SCORE)</label>
-			<nail x="-3450" y="-2916"/>
+			<label kind="guard" x="-3519" y="-2949">on_finish_lane() &amp;&amp; all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3519" y="-2932">reset(), add_score(LEVEL_COMPLETE_SCORE)</label>
+			<nail x="-3527" y="-2916"/>
 		</transition>
 		<transition id="id6">
 			<source ref="id2"/>
@@ -394,9 +393,9 @@ void move() {
 		<transition id="id9">
 			<source ref="id1"/>
 			<target ref="id4"/>
-			<label kind="guard" x="-3442" y="-3255">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
-			<label kind="assignment" x="-3442" y="-3238">tick = 0, reset()</label>
-			<nail x="-3451" y="-3255"/>
+			<label kind="guard" x="-3519" y="-3255">on_finish_lane() &amp;&amp; !all_home_bays_occupied()</label>
+			<label kind="assignment" x="-3519" y="-3238">tick = 0, reset()</label>
+			<nail x="-3528" y="-3255"/>
 		</transition>
 		<transition id="id10">
 			<source ref="id4"/>
@@ -415,19 +414,19 @@ void move() {
 		<transition id="id12">
 			<source ref="id1"/>
 			<target ref="id0"/>
-			<label kind="guard" x="-3450" y="-3060">!on_finish_lane()</label>
-			<label kind="synchronisation" x="-3450" y="-3043">frog_moved!</label>
-			<label kind="assignment" x="-3450" y="-3026">tick = 0,frog_on_diving_turtle = false</label>
-			<nail x="-3458" y="-3010"/>
+			<label kind="guard" x="-3527" y="-3060">!on_finish_lane()</label>
+			<label kind="synchronisation" x="-3527" y="-3043">frog_moved!</label>
+			<label kind="assignment" x="-3527" y="-3026">tick = 0,frog_on_diving_turtle = false</label>
+			<nail x="-3535" y="-3010"/>
 			<nail x="-3034" y="-3009"/>
 		</transition>
 		<transition id="id13">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="guard" x="-3450" y="-3145">tick &gt;= MOVE_COOLDOWN &amp;&amp; can_move()</label>
-			<label kind="assignment" x="-3450" y="-3128">move()</label>
+			<label kind="guard" x="-3527" y="-3145">tick &gt;= MOVE_COOLDOWN &amp;&amp; timer &lt;= LEVEL_TIME &amp;&amp; can_move()</label>
+			<label kind="assignment" x="-3527" y="-3128">move()</label>
 			<nail x="-3034" y="-3145"/>
-			<nail x="-3458" y="-3145"/>
+			<nail x="-3535" y="-3145"/>
 		</transition>
 	</template>
 	<template>
@@ -787,14 +786,14 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 		<query>
 			<formula>E&lt;&gt; (score == 17 &amp;&amp; home_bay_occupied[2])</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:21:09 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-22 17:58:17 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == FROG_MAX_LIVES - 2)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:21:28 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-22 17:58:33 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
@@ -807,14 +806,14 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	   )
 	 )</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:23:33 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-22 18:00:31 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle==true &amp;&amp; F.Dead)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:26:35 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-22 18:01:39 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
