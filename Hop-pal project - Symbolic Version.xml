@@ -157,16 +157,18 @@ Score score = 0;
 /*
  * Shared dynamic flags.
  *
- * diving_turtles_are_submerged is global because all diving turtles start in
+ * "diving_turtles_are_submerged" is global because all diving turtles start in
  * the same phase and follow the same deterministic cycle in this abstraction.
  *
- * home_bay_occupied stores whether each of the five home bays has already been
+ * "home_bay_occupied" stores whether each of the five home bays has already been
  * reached.
+ *
+ * "frog_on_diving_turtles" and "frog_on_log" are flags used to test the model.
  */
 bool diving_turtles_are_submerged = false;
 bool home_bay_occupied[HOME_BAYS] = {false, false, false, false, false};
-
 bool frog_on_diving_turtle = false;
+bool frog_on_log = false;
 
 // ------------------------------ Home-bay utilities ------------------------------
 
@@ -225,6 +227,13 @@ bool all_home_bays_occupied() {
         if (!home_bay_occupied[i]) return false;
     }
     return true;
+}
+
+// ------------------------------ Testing Utilities --------------------------
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
 }
 
 // ------------------------------ Score utility ------------------------------
@@ -288,7 +297,20 @@ broadcast chan frog_moved;
 broadcast chan diving_turtles_submerged;</declaration>
 	<template>
 		<name x="5" y="5">Frogger</name>
-		<declaration>// ============================== FROG DECLARATIONS ==============================
+		<declaration>// ============================== TEMPLATE STRUCTURE =============================    
+/* 
+ * This Automata models Frogger's logic. 
+ * The initial state is RESPAWN, after two seconds the transition fires and Frogger reaches the Idle state. After the cooldown period,
+ * if the can_move() logic is satisfied and the timer isn't over, the transition can fire, reaching the committed state MOVE and applying the move()
+ * updates. According to the logic of the game (if Frogger has reached the last Home_Bay, an Home_Bay but not the last one or a generic Cell, 
+ * the transition to GAME_OVER/RESPAWN/IDLE, respectively, fires, updating what needed. In particular, if the transition to IDLE fires, a frog_moved
+ * event is thrown, so that the pertinent lane can check if the frog has died. 
+ * When Frogger is in IDLE, if a kill_frog event is captured (Frogger's death is managed by the lanes) or the timer expires, the transition to DEAD 
+ * fires and based on Frogger's lives it leads to RESPAWN or GAME_OVER.
+ * 
+ */
+
+// ============================== FROG DECLARATIONS ==============================
 // Local timing and actions for the symbolic Frogger controller.
 
 // ------------------------------ Local Variables --------------------------------
@@ -305,7 +327,7 @@ Lives lives = FROG_MAX_LIVES;
 void reset() {
     frog_x = FROG_SPAWN_X;
     frog_y = FROG_SPAWN_Y;
-    frog_on_diving_turtle = false;
+    reset_utilities();
     timer = 0;
 }
 
@@ -330,11 +352,14 @@ bool can_move() {
 
 /*
  * Performs the symbolic upward move and awards the movement point.
- * If frogger moves into a non-occupied home bay, it is set as reached
+ * If frogger moves into a non-occupied home bay, it is set as reached.
+ * Everytime Frogger moves, all the utility flags are set false and then eventually
+ * re-set by the lane.
  */
 void move() {
     frog_y = frog_y + 1;
     add_score(MOVE_UP_SCORE);
+    reset_utilities();
     if (on_finish_lane()) {
         set_current_home_bay_as_occupied();
         add_score(HOME_BAY_SCORE);
@@ -416,7 +441,7 @@ void move() {
 			<target ref="id0"/>
 			<label kind="guard" x="-3527" y="-3060">!on_finish_lane()</label>
 			<label kind="synchronisation" x="-3527" y="-3043">frog_moved!</label>
-			<label kind="assignment" x="-3527" y="-3026">tick = 0,frog_on_diving_turtle = false</label>
+			<label kind="assignment" x="-3527" y="-3026">tick = 0</label>
 			<nail x="-3535" y="-3010"/>
 			<nail x="-3034" y="-3009"/>
 		</transition>
@@ -432,7 +457,18 @@ void move() {
 	<template>
 		<name>VehicleLane</name>
 		<parameter>const PosY lane_y</parameter>
-		<declaration>// =========================== VEHICLE LANE DECLARATION =========================
+		<declaration>// ============================== TEMPLATE STRUCTURE =============================    
+/*
+ * This Automata models the road lanes.
+ * In our abstraction, all the road lanes, from now on called VEHICLELANE, are modeled using the same Template. It takes in input the number
+ * of the lane and takes all the needed values from global variables (speed, where the vehicle are, ...). 
+ * The initial state is WAIT. According to the rules, a transition to CHECK_FROG fires everytime the local clock tick reaches the value speed, 
+ * incresing the variable shift to simulate the vehicles movement. The other transition to CHECK_FROG fires when a frog_moved event is captured. 
+ * When in CHECK_FROG it checks if there is a collision with Frogger and in that case throws a kill_frog event, otherwise no updates are done.
+ *
+*/
+
+// =========================== VEHICLE LANE DECLARATION =========================
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -486,8 +522,8 @@ bool collision() {
 		<transition id="id17">
 			<source ref="id14"/>
 			<target ref="id15"/>
-			<label kind="guard" x="-51" y="-136">frog_y == lane_y</label>
-			<label kind="synchronisation" x="-42" y="-110">frog_moved?</label>
+			<label kind="guard" x="-102" y="-136">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-102" y="-110">frog_moved?</label>
 			<nail x="-119" y="-110"/>
 			<nail x="153" y="-110"/>
 		</transition>
@@ -502,8 +538,8 @@ bool collision() {
 		<transition id="id19">
 			<source ref="id14"/>
 			<target ref="id15"/>
-			<label kind="guard" x="-51" y="-229">tick &gt;= speed</label>
-			<label kind="assignment" x="-76" y="-212">move_lane(), tick = 0</label>
+			<label kind="guard" x="-102" y="-229">tick &gt;= speed</label>
+			<label kind="assignment" x="-102" y="-212">move_lane(), tick = 0</label>
 			<nail x="-144" y="-187"/>
 			<nail x="170" y="-187"/>
 		</transition>
@@ -511,7 +547,18 @@ bool collision() {
 	<template>
 		<name>FloatingLane</name>
 		<parameter>const PosY lane_y</parameter>
-		<declaration>// ========================== FLOATING LANE DECLARATION =========================
+		<declaration>// ============================== TEMPLATE STRUCTURE =============================    
+
+/*
+ * This Automata models the "water lanes".
+ * The mechanism is very similar to the vehiclelane's one, with the only difference of the self-loop in WAIT which simulates the lane's movement. 
+ * In this case it doesn't need to check if it has killed Frogger after moving (the lane), beacuse a floating lane cannot kill Frogger simply moving 
+ * as in the case of the VehicleLane. In addition, there is a Transition to CHECK_FROG that fires if the diving_turtles_submerged is caught, because 
+ * if diving turtles are present in the lane, it has to check if Frogger has drown riding a diving turtle.
+ * 
+*/
+
+// ========================== FLOATING LANE DECLARATION =========================
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -561,12 +608,42 @@ bool drowning() {
 
 
 /*
- * Checks whether frog is on a diving turtle. 
+ * This function is not relevant for the correctness of the Model, i.e. it can be removed
+ * and the System would still model the game perfectly.
+ * "frog_on_diving_turtle" and "frog_on_log" are just two testing flags, as said above NOT
+ * NECESSARY for the correctness of the model, that we used to verify (without hardcoding
+ * the queries) property V), VI). We could avoid using "frog_on_log" with this brutally 
+ * hardcoded query:
+ * 
+ *     E&lt;&gt; ( timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; (
+ *             (frog_y == 8 &amp;&amp; LANE_STRUCTURES[8][(LANE_W + frog_x - L8.shift) % LANE_W]) == L || 
+ *             (frog_y == 9 &amp;&amp; LANE_STRUCTURES[9][(LANE_W + frog_x - L9.shift) % LANE_W]) == L || 
+ *             (frog_y == 11 &amp;&amp; LANE_STRUCTURES[11][(LANE_W + frog_x - L11.shift) % LANE_W] == L))
+ *         )
+ * 
+ * but in our opinion the flag would be a more elegant solution.
+ * "frog_on_diving_turtle" is instead necessary to verify property IV). The lack of the 
+ * 'next-step' operator in Uppaal forces to use a state or a variable to keep track of a sequential
+ * step-by-step flow. 
+ * Every floating lane, when Frogger is on it, calls this function to update this
+ * variable to state whether Frogger is on a diving turtle or not, in order to make possible to verify
+ * that frogger can die while riding a diving turtle that transitions to the submerged state.
+ * Keep in Ming that using a query as:
+ *     E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; F.Dead &amp;&amp; "Frogger coordinates are still the ones of a DT")
+ * both is an horrible hardcoded solution (it would have the same structure of the one above for logs) 
+ * and is also not correct, because it would be true also when Frogger jumps on already submerged DT, 
+ * which is not what the property is about. 
+ * We should be able to say "Frogger is now death, his coordinates are still the one of a DT 
+ * (the reset function is not immediate), DT are submerged and he was on a DT while it was still
+ * emerged", and this is impossible without a flag as stated above. 
  */
-void check_frog_on_diving_turtle() {
+void manage_utilities() {
     Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W];
     frog_on_diving_turtle = (cell == D);
-}</declaration>
+    frog_on_log = (cell == L);
+}
+
+</declaration>
 		<location id="id20" x="-6358" y="-5788">
 			<name x="-6400" y="-5780">Wait</name>
 			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
@@ -589,7 +666,7 @@ void check_frog_on_diving_turtle() {
 			<source ref="id21"/>
 			<target ref="id20"/>
 			<label kind="guard" x="-6196" y="-5754">!drowning()</label>
-			<label kind="assignment" x="-6273" y="-5729">check_frog_on_diving_turtle()</label>
+			<label kind="assignment" x="-6222" y="-5729">manage_utilities()</label>
 			<nail x="-6010" y="-5728"/>
 			<nail x="-6282" y="-5728"/>
 		</transition>
@@ -620,11 +697,16 @@ void check_frog_on_diving_turtle() {
 	</template>
 	<template>
 		<name>DivingTurtleCycle</name>
-		<declaration>// ======================= DIVING TURTLE CYCLE DECLARATION ======================
+		<declaration>// ============================== TEMPLATE STRUCTURE =============================    
+
+/*
+ * The only purpose of this Automata is to manage the diving cycle of the Diving Turtles. 
+ * It sets the global variable diving_turtles_are_submerged when needed.
+*/
+
+// ======================= DIVING TURTLE CYCLE DECLARATION ======================
 // Deterministic global phase shared by all diving turtles.
 //
-// The template alternates emerged -&gt; diving -&gt; submerged -&gt; emerging.
-// Only the submerged phase disables D support in floating-lane safety checks.
 
 clock tick;</declaration>
 		<location id="id27" x="-781" y="-162">
@@ -700,122 +782,197 @@ system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<option key="--diagnostic" value="0"/>
 		<query>
-			<formula>A[] (not deadlock) // Without instantiating Frogger</formula>
+			<formula>I) Without considering Frogger: the game never reaches a deadlock state.</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:13:54 +0200">
+		</query>
+		<query>
+			<formula> A[] (not deadlock) </formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:21:59 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L1.row == 1) // Without instantiating Frogger</formula>
+			<formula>It's crucial NOT TO INSTANCIATE FROGGER to verify this property. To check the veridicity of an invariant property such as this one, Hoppaal's verifier </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:10 +0200">
+		</query>
+		<query>
+			<formula>has to explore all the reachable states. If we keep Frogger, this number explodes and it would take many hours to verify it. </formula>
+			<comment/>
+		</query>
+		<query>
+			<formula>We have to keep in mind that having Frogger instanciated doesn't affect the veridicity of this property. That's because to verify it, Hoppal checks if there is</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula>always at least one transition in at least one Template that can fire, thus the fact that after the Frogger's death its Template doesnt exit the GameOver state </formula>
+			<comment/>
+		</query>
+		<query>
+			<formula>is not a problem.</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula/>
+			<comment/>
+		</query>
+		<query>
+			<formula>II) Without considering Frogger: all vehicles and floating objects can only move inside their predefined row.</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> ! DO NOT INSTANCIATE FROGGER !</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> A[](L1.row == 1) </formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:09 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L2.row == 2) // Without instantiating Frogger</formula>
+			<formula> A[](L2.row == 2) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:21 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:17 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L3.row == 3) // Without instantiating Frogger</formula>
+			<formula> A[](L3.row == 3) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:32 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:29 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L4.row == 4) // Without instantiating Frogger</formula>
+			<formula> A[](L4.row == 4) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:43 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:37 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L5.row == 5) // Without instantiating Frogger</formula>
+			<formula> A[](L5.row == 5) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:14:53 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:48 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L7.row == 7) // Without instantiating Frogger</formula>
+			<formula> A[](L7.row == 7) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:04 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:22:59 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L8.row == 8) // Without instantiating Frogger</formula>
+			<formula> A[](L8.row == 8) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:14 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:23:16 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L9.row == 9) // Without instantiating Frogger</formula>
+			<formula> A[](L9.row == 9) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:23 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:23:23 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L10.row == 10) // Without instantiating Frogger</formula>
+			<formula> A[](L10.row == 10) </formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:15:33 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:23:30 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>A[](L11.row == 11) // Without instantiating Frogger</formula>
+			<formula> A[](L11.row == 11)</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:16:33 +0200">
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:23:40 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt;(home_bay_occupied[0]) </formula>
+			<formula/>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-18 21:18:38 +0200">
+		</query>
+		<query>
+			<formula>III) Frogger can reach the home bay in position (0,12)–(1,12).</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> E&lt;&gt;(home_bay_occupied[0])
+</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:24:39 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (score == 17 &amp;&amp; home_bay_occupied[2])</formula>
+			<formula/>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-22 17:58:17 +0200">
+		</query>
+		<query>
+			<formula>IV) Frogger can score 17 points reaching the home bay in position (8,12)–(9,12).</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> E&lt;&gt; (score == 17 &amp;&amp; home_bay_occupied[2])</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:25:38 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == FROG_MAX_LIVES - 2)</formula>
+			<formula/>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-22 17:58:33 +0200">
+		</query>
+		<query>
+			<formula>V) Frogger can reach a yellow cell in row 6 after the player has lost two lives.</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> E&lt;&gt; (frog_y == 6 &amp;&amp; F.lives == FROG_MAX_LIVES - 2)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:25:14 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; 
-	   (
-	    (frog_y == 8 &amp;&amp; LANE_STRUCTURES[8][(LANE_W + frog_x - L8.shift) % LANE_W]) == L || 
-	    (frog_y == 9 &amp;&amp; LANE_STRUCTURES[9][(LANE_W + frog_x - L9.shift) % LANE_W]) == L || 
-	    (frog_y == 11 &amp;&amp; LANE_STRUCTURES[11][(LANE_W + frog_x - L11.shift) % LANE_W] == L)
-	   )
-	 )</formula>
+			<formula/>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-22 18:00:31 +0200">
+		</query>
+		<query>
+			<formula>VI) Frogger may stand on a log (with five lives) 10 seconds after the game starts.</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> E&lt;&gt; (timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; frog_on_log)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:27:31 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle==true &amp;&amp; F.Dead)</formula>
+			<formula/>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2026-07-22 18:01:39 +0200">
+		</query>
+		<query>
+			<formula>VII) Frogger can die riding a diving turtle that transitions to the submerged state.</formula>
+			<comment/>
+		</query>
+		<query>
+			<formula> E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; frog_on_diving_turtle &amp;&amp; F.Dead)</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2026-07-24 01:29:57 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
+		</query>
+		<query>
+			<formula/>
+			<comment/>
 		</query>
 	</queries>
 </nta>

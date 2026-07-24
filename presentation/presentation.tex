@@ -255,7 +255,7 @@ The floating lane template models a river lane, where the frog can
 only survive by standing on floating objects, such as logs and turtles.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/floating_lane.jpeg}
+    \includegraphics[width=\textwidth]{images/floating_lane.png}
     \caption{Floating Object Lane Template}
     \label{fig:floatingLaneImage}
 \end{figure}
@@ -332,11 +332,12 @@ weighted branches instead, whose normalised weights become the actual
 probability of each direction.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/frogger_stochastic.jpeg}
+    \includegraphics[width=\textwidth]{images/frogger_stochastic.png}
     \caption{Frogger Template -- Stochastic Variation}
     \label{fig:froggerStochasticImage}
 \end{figure}
 
+\newpage
 \subsubsection{Truck Lane}
 In the deterministic template, the lane moved on a fixed rate as soon as the internal clock
 reached \texttt{speed}. Here,
@@ -385,7 +386,7 @@ an object to leave its lane.
 \subsubsection*{Frogger can reach the home bay in position (0,12)–(1,12)}
 \[ (\textrm{III}) : \quad \exists \Diamond \; \big(home\_bays[0] = true \big) \]
 It's saying that exists at least one path that eventually will lead to 
-Frogger reaching a home bay cell.
+Frogger reaching the first home bay cell.
 
 \hfill \textit{Execution time: $\sim$5s}
 
@@ -411,31 +412,15 @@ lost exactly two lives.
 after the game starts}
 \[
 \begin{aligned}[t]
-& (\textrm{VI}) : \quad \exists \Diamond \Bigg( \textit{lives} =
+& (\textrm{VI}) : \quad \exists \Diamond \big( \textit{lives} =
    \textit{MAX\_LIVES} \wedge \textit{frog\_timer} = 100 \wedge
-   \Big( \\
-& \quad \big( \textit{frog\_y} = 8 \wedge
-   \textit{LANE\_STRUCTURES}[8][ \\
-& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L8.shift})
-   \bmod \textit{LANE\_W}] = L \big) \\
-& \quad \vee\ \big( \textit{frog\_y} = 9 \wedge
-   \textit{LANE\_STRUCTURES}[9][ \\
-& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L9.shift})
-   \bmod \textit{LANE\_W}] = L \big) \\
-& \quad \vee\ \big( \textit{frog\_y} = 11 \wedge
-   \textit{LANE\_STRUCTURES}[11][ \\
-& \qquad (\textit{LANE\_W} + \textit{frog\_x} - \textit{L11.shift})
-   \bmod \textit{LANE\_W}] = L \big) \Big) \Bigg)
+   \textit{frog\_on\_log}\big)
 \end{aligned}
 \]
-Rows 8, 9 and 11 are the only river lanes that carry logs, so the
-disjunction covers exactly the positions where Frogger could be riding
-one. Since each lane scrolls independently through the constant
-\texttt{Li.shift}, the cell underneath the frog is not simply
-\texttt{LANE\_STRUCTURES[frog\_y][frog\_x]}: the shift has to be
-subtracted first, and \texttt{LANE\_W} added back before taking the
-modulo, so the index never becomes negative. The resulting cell is then
-checked to be a log (\texttt{L}).
+There exists a path on which eventually Frogger, without having lost
+any lives after 10 seconds the game started, may stand on a log.
+Here to predicate on Frogger's location, as exaustively explained in the 
+project's Documentation, we check the value of the flag \textit{frog\_on\_log}.
 
 \hfill \textit{Execution time: $\sim$2min}
 \subsubsection*{Frogger can die riding a diving turtle that transitions to the submerged state}
@@ -464,7 +449,7 @@ probability of completing the first level while scoring at least
 200 points.}
 \vspace{\baselineskip}
 
-Running \texttt{Pr[<=1000;1000](<> level==1 \&\& score>=200)} on the
+Running \texttt{Pr[<=1000;1000](<> level==2 \&\& score>=200)} on the
 stochastic model yields a probability estimate with a 99\% confidence
 interval of $[0.000338, 0.010934]$, which is essentially negligible.
 This is a direct consequence of the frog's movement policy: the

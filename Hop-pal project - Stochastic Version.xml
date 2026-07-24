@@ -177,6 +177,7 @@ Score score = 0;
 bool diving_turtles_are_submerged = false;
 bool home_bay_occupied[HOME_BAYS] = {false, false, false, false, false};
 bool frog_on_diving_turtle = false;
+bool frog_on_log = false;
 
 // ------------------------------ Home-bay utilities ------------------------------
 
@@ -244,6 +245,13 @@ bool all_home_bays_occupied() {
         if (!home_bay_occupied[i]) return false;
     }
     return true;
+}
+
+// ------------------------------ Testing Utilities --------------------------
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
 }
 
 // ------------------------------ Score utility ------------------------------
@@ -337,7 +345,7 @@ Lives lives = FROG_MAX_LIVES;
 void reset_frog() {
     frog_x = FROG_SPAWN_X;
     frog_y = FROG_SPAWN_Y;
-    frog_on_diving_turtle = false;
+    reset_utilities();
     timer = 0;
 }
 
@@ -411,6 +419,9 @@ void move_frog(Direction dx, Direction dy) {
     frog_x = frog_x + dx;
     frog_y = frog_y + dy;
 
+    // reset testing utilities
+    reset_utilities();
+
     // score update
     if (dy == UP) add_score(MOVE_UP_SCORE);
 }</declaration>
@@ -468,7 +479,7 @@ timer &lt;= get_level_time()</label>
 		<transition id="id10">
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-3885" y="-3978">move_frog(RIGHT, SAME)</label>
+			<label kind="assignment" x="-3876" y="-3978">move_frog(RIGHT, SAME)</label>
 			<label kind="probability" x="-3681" y="-3978">0.2</label>
 			<nail x="-3654" y="-3978"/>
 			<nail x="-3884" y="-3978"/>
@@ -522,7 +533,7 @@ timer &lt; get_level_time()</label>
 			<target ref="id0"/>
 			<label kind="guard" x="-3936" y="-3800">!on_home_bay()</label>
 			<label kind="synchronisation" x="-3935" y="-3783">frog_moved!</label>
-			<label kind="assignment" x="-3935" y="-3766">tick = 0, frog_on_diving_turtle = false</label>
+			<label kind="assignment" x="-3935" y="-3766">tick = 0</label>
 			<nail x="-3944" y="-3885"/>
 			<nail x="-3944" y="-3800"/>
 			<nail x="-3331" y="-3800"/>
@@ -592,8 +603,8 @@ bool collision() {
 		<transition id="id21">
 			<source ref="id18"/>
 			<target ref="id19"/>
-			<label kind="guard" x="-110" y="-153">frog_y == lane_y</label>
-			<label kind="synchronisation" x="-110" y="-136">frog_moved?</label>
+			<label kind="guard" x="-110" y="-136">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-110" y="-110">frog_moved?</label>
 			<nail x="-119" y="-110"/>
 			<nail x="153" y="-110"/>
 		</transition>
@@ -658,6 +669,11 @@ void move_lane() {
  */
 bool collision() {
     return LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W] == V;
+}
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
 }</declaration>
 		<location id="id24" x="-450" y="-102">
 			<name x="-501" y="-110">Wait</name>
@@ -678,8 +694,8 @@ bool collision() {
 		<transition id="id27">
 			<source ref="id24"/>
 			<target ref="id25"/>
-			<label kind="guard" x="-365" y="-204">frog_y == lane_y</label>
-			<label kind="synchronisation" x="-365" y="-187">frog_moved?</label>
+			<label kind="guard" x="-365" y="-187">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-365" y="-161">frog_moved?</label>
 			<nail x="-374" y="-161"/>
 			<nail x="-102" y="-161"/>
 		</transition>
@@ -758,7 +774,18 @@ void move_lane() {
 bool drowning() {
     int cell = LANE_STRUCTURES[lane_y][(LANE_W + frog_x - shift) % LANE_W];
     return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
-}</declaration>
+}
+
+/* 
+ * The Documentation of this function can be found in the Symbolic Version, the logic and the
+ * design choices are the same.
+*/
+void manage_utilities() {
+    Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W];
+    frog_on_diving_turtle = (cell == D);
+    frog_on_log = (cell == L);
+}
+</declaration>
 		<location id="id30" x="-6358" y="-5788">
 			<name x="-6400" y="-5780">Wait</name>
 			<label kind="invariant" x="-6477" y="-5763">tick &lt;= speed</label>
@@ -781,14 +808,15 @@ bool drowning() {
 			<source ref="id31"/>
 			<target ref="id30"/>
 			<label kind="guard" x="-6273" y="-5754">frog_y != lane_y || !drowning()</label>
+			<label kind="assignment" x="-6273" y="-5729">manage_utilities()</label>
 			<nail x="-6010" y="-5728"/>
 			<nail x="-6282" y="-5728"/>
 		</transition>
 		<transition id="id34">
 			<source ref="id30"/>
 			<target ref="id31"/>
-			<label kind="guard" x="-6273" y="-5890">frog_y == lane_y</label>
-			<label kind="synchronisation" x="-6273" y="-5873">frog_moved?</label>
+			<label kind="guard" x="-6273" y="-5873">frog_y == lane_y</label>
+			<label kind="synchronisation" x="-6273" y="-5848">frog_moved?</label>
 			<nail x="-6282" y="-5847"/>
 			<nail x="-6010" y="-5847"/>
 		</transition>
@@ -896,120 +924,142 @@ F = Frogger();
 system L1, L2, L3, L4, L5, L7, L8, L9, L10, L11, DTC, F;</system>
 	<queries>
 		<option key="--alpha" value="0.01"/>
+		<option key="--diagnostic" value="-1"/>
 		<query>
-			<formula>Pr[&lt;=1000; 1000](&lt;&gt; level==1 &amp;&amp; score&gt;=200)</formula>
+			<formula>I) Simulate the game for a maximum of 1000 time units and estimate the probability of completing the first level while scoring at least 200 points.
+</formula>
 			<comment/>
-			<result outcome="success" type="quantity" value="0.00563596 ± 0.00529782 (99% CI)" timestamp="2026-07-05 20:03:02 +0200">
+		</query>
+		<query>
+			<formula> Pr[&lt;=1000; 1000](&lt;&gt; level == 2 &amp;&amp; score&gt;=200)</formula>
+			<comment/>
+			<result outcome="success" type="quantity" value="0.00954416 ± 0.00750277 (99% CI)" timestamp="2026-07-24 00:28:25 +0200">
 				<option key="--alpha" value="0.01"/>
-				<details>0.00563596 ± 0.00529782 (99% CI)</details>
+				<option key="--diagnostic" value="-1"/>
+				<details>0.00954416 ± 0.00750277 (99% CI)</details>
 				<plot title="Probability Density Distribution" xaxis="run duration in time" yaxis="probability density">
-					<series title="density" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,6.896551724137931E-5
-408.5,6.896551724137931E-5
-423.0,6.896551724137931E-5
+					<series title="density" type="b(32.000000)" color="0x0000ff" encoding="csv">360.0,6.25E-5
+392.0,3.125E-5
+424.0,9.375E-5
+456.0,3.125E-5
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,6.896551724137931E-5
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,9.375E-5
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Probability Density Confidence Intervals" xaxis="run duration in time" yaxis="probability density">
-					<series title="upper limit" type="b(14.500000)" color="0xa0a0ff" encoding="csv">394.0,0.007406286938352938
-408.5,0.007406286938352938
-423.0,0.007406286938352938
+					<series title="upper limit" type="b(32.000000)" color="0xa0a0ff" encoding="csv">360.0,0.009240130636205579
+392.0,0.007406286938352938
+424.0,0.010933777420405242
+456.0,0.007406286938352938
 					</series>
-					<series title="lower limit" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,5.0125292607775065E-6
-408.5,5.0125292607775065E-6
-423.0,5.0125292607775065E-6
+					<series title="lower limit" type="b(32.000000)" color="0x0000ff" encoding="csv">360.0,1.0354097257471616E-4
+392.0,5.0125292607775065E-6
+424.0,3.3814452906649327E-4
+456.0,5.0125292607775065E-6
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,5.107784095415819E-4
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,3.416805443876638E-4
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Probability Distribution" xaxis="run duration in time" yaxis="probability">
-					<series title="probability" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,0.001
-408.5,0.001
-423.0,0.001
+					<series title="probability" type="b(32.000000)" color="0x0000ff" encoding="csv">360.0,0.002
+392.0,0.001
+424.0,0.003
+456.0,0.001
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,0.001
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,0.003
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Probability Confidence Intervals" xaxis="run duration in time" yaxis="probability">
-					<series title="upper limit" type="b(14.500000)" color="0xa0a0ff" encoding="csv">394.0,0.007406286938352938
-408.5,0.007406286938352938
-423.0,0.007406286938352938
+					<series title="upper limit" type="b(32.000000)" color="0xa0a0ff" encoding="csv">360.0,0.009240130636205579
+392.0,0.007406286938352938
+424.0,0.010933777420405242
+456.0,0.007406286938352938
 					</series>
-					<series title="lower limit" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,5.0125292607775065E-6
-408.5,5.0125292607775065E-6
-423.0,5.0125292607775065E-6
+					<series title="lower limit" type="b(32.000000)" color="0x0000ff" encoding="csv">360.0,1.0354097257471616E-4
+392.0,5.0125292607775065E-6
+424.0,3.3814452906649327E-4
+456.0,5.0125292607775065E-6
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,0.007406286938352938
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,0.010933777420405242
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Cumulative Probability Distribution" xaxis="run duration in time" yaxis="probability">
-					<series title="cumulative" type="l" color="0x000000" encoding="csv">394.0,0.0
-408.5,0.001
-423.0,0.002
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">360.0,0.0
+392.0,0.002
+424.0,0.003
+456.0,0.006
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,0.0030000000000000027
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,0.007000000000000006
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Cumulative Probability Confidence Intervals" xaxis="run duration in time" yaxis="probability">
-					<series title="upper limit" type="k" color="0x0000dd" encoding="csv">394.0,0.005284306039497443
-408.5,0.007406286938352938
-423.0,0.009240130636205579
+					<series title="upper limit" type="k" color="0x0000dd" encoding="csv">360.0,0.005284306039497443
+392.0,0.009240130636205579
+424.0,0.010933777420405242
+456.0,0.015584178789832157
 					</series>
-					<series title="lower limit" type="k" color="0xdd0000" encoding="csv">394.0,0.0
-408.5,5.0125292607775065E-6
-423.0,1.0354097257471616E-4
+					<series title="lower limit" type="k" color="0xdd0000" encoding="csv">360.0,0.0
+392.0,1.0354097257471616E-4
+424.0,3.3814452906649327E-4
+456.0,0.0015395801111213257
 					</series>
-					<series title="cumulative" type="l" color="0x000000" encoding="csv">394.0,0.0
-408.5,0.001
-423.0,0.002
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">360.0,0.0
+392.0,0.002
+424.0,0.003
+456.0,0.006
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,0.0030000000000000027
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,0.007000000000000006
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 				<plot title="Frequency Histogram" xaxis="run duration in time" yaxis="count">
-					<series title="count" type="b(14.500000)" color="0x0000ff" encoding="csv">394.0,1.0
-408.5,1.0
-423.0,1.0
+					<series title="count" type="b(32.000000)" color="0x0000ff" encoding="csv">360.0,2.0
+392.0,1.0
+424.0,3.0
+456.0,1.0
 					</series>
-					<series title="average" type="pl" color="0x00dd00" encoding="csv">411.0,0.0
-411.0,1.0
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">416.3185520954425,0.0
+416.3185520954425,3.0
 					</series>
-					<comment>Parameters: α=0.01, ε=0.05, bucket width=14.5, bucket count=3
-Runs: 1000 in total, 3 (0.3%) displayed, 997 (99.7%) remaining
-Displayed sample set: { 423, 416, 394 }
-Mean estimate of displayed sample: 411 ± 86.71 (99% CI)</comment>
+					<comment>Parameters: α=0.01, ε=0.05, bucket width=32, bucket count=4
+Runs: 1000 in total, 7 (0.7%) displayed, 993 (99.3%) remaining
+Span of displayed sample: [360, 456]
+Mean estimate of displayed sample: 416.3 ± 49.9 (99% CI)</comment>
 				</plot>
 			</result>
+		</query>
+		<query>
+			<formula/>
+			<comment/>
 		</query>
 	</queries>
 </nta>
