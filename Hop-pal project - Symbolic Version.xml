@@ -229,12 +229,6 @@ bool all_home_bays_occupied() {
     return true;
 }
 
-// ------------------------------ Testing Utilities --------------------------
-
-void reset_utilities(){
-    frog_on_diving_turtle = false;
-    frog_on_log = false;
-}
 
 // ------------------------------ Score utility ------------------------------
 
@@ -243,6 +237,14 @@ void reset_utilities(){
  */
 void add_score(int points) {
     score = (score + points &gt; MAX_SCORE) ? MAX_SCORE : score + points;
+}
+
+
+// ------------------------------ Verifier Utilities --------------------------
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
 }
 
 
@@ -307,7 +309,6 @@ broadcast chan diving_turtles_submerged;</declaration>
  * event is thrown, so that the pertinent lane can check if the frog has died. 
  * When Frogger is in IDLE, if a kill_frog event is captured (Frogger's death is managed by the lanes) or the timer expires, the transition to DEAD 
  * fires and based on Frogger's lives it leads to RESPAWN or GAME_OVER.
- * 
  */
 
 // ============================== FROG DECLARATIONS ==============================
@@ -465,8 +466,7 @@ void move() {
  * The initial state is WAIT. According to the rules, a transition to CHECK_FROG fires everytime the local clock tick reaches the value speed, 
  * incresing the variable shift to simulate the vehicles movement. The other transition to CHECK_FROG fires when a frog_moved event is captured. 
  * When in CHECK_FROG it checks if there is a collision with Frogger and in that case throws a kill_frog event, otherwise no updates are done.
- *
-*/
+ */
 
 // =========================== VEHICLE LANE DECLARATION =========================
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
@@ -555,8 +555,7 @@ bool collision() {
  * In this case it doesn't need to check if it has killed Frogger after moving (the lane), beacuse a floating lane cannot kill Frogger simply moving 
  * as in the case of the VehicleLane. In addition, there is a Transition to CHECK_FROG that fires if the diving_turtles_submerged is caught, because 
  * if diving turtles are present in the lane, it has to check if Frogger has drown riding a diving turtle.
- * 
-*/
+ */
 
 // ========================== FLOATING LANE DECLARATION =========================
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
@@ -606,6 +605,8 @@ bool drowning() {
     return cell == W || (cell == D &amp;&amp; diving_turtles_are_submerged);
 }
 
+
+// ------------------------------ Verifier Utilities ------------------------------
 
 /*
  * This function is not relevant for the correctness of the Model, i.e. it can be removed
@@ -700,13 +701,16 @@ void manage_utilities() {
 		<declaration>// ============================== TEMPLATE STRUCTURE =============================    
 
 /*
- * The only purpose of this Automata is to manage the diving cycle of the Diving Turtles. 
- * It sets the global variable diving_turtles_are_submerged when needed.
-*/
+ * A global automaton, unique in its single instance, governing the deterministic,
+ * shared cycle of all diving turtles: Emerged → Diving → Submerged → Emerging → Emerged. 
+ * Stable phases (Emerged, Submerged) last DIVING_TURTLE_STABLE_STATE_TIMER, transition phases (Diving, Emerging)
+ * last DIVING_TURTLE_TRANSITION_STATE_TIMER. Only entry into Submerged broadcasts diving_turtles_submerged! and 
+ * updates the global flag diving_turtles_are_submerged, which is the only piece of information 
+ * the relevant FloatingLanes need to observe.
+ */
 
 // ======================= DIVING TURTLE CYCLE DECLARATION ======================
 // Deterministic global phase shared by all diving turtles.
-//
 
 clock tick;</declaration>
 		<location id="id27" x="-781" y="-162">

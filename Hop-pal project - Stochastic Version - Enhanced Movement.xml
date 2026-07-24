@@ -262,12 +262,6 @@ bool all_home_bays_occupied() {
     return true;
 }
 
-// ------------------------------ Testing Utilities --------------------------
-
-void reset_utilities(){
-    frog_on_diving_turtle = false;
-    frog_on_log = false;
-}
 
 // ------------------------------ Score utility ------------------------------
 
@@ -276,6 +270,14 @@ void reset_utilities(){
  */
 void add_score(int points) {
     score = (score + points &gt; MAX_SCORE) ? MAX_SCORE : score + points;
+}
+
+
+// ------------------------------ Verifier Utilities --------------------------
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
 }
 
 
@@ -331,13 +333,15 @@ broadcast chan diving_turtles_submerged;</declaration>
 	<template>
 		<name x="5" y="5">Frogger</name>
 		<declaration>// ============================== FROG DECLARATIONS ==============================
+
+/*
+ * Same as the frogger template in the Stochastic Version but with a new movement policy
+ */
+
 // Local timing and actions for the symbolic Frogger controller.
 
 // ------------------------------ Local Variables --------------------------------
 clock tick;
-
-// ------------------------------ Bounded types ------------------------------
-
 Lives lives = FROG_MAX_LIVES;
 
 // ------------------------------ Local Utilities --------------------------------
@@ -353,7 +357,11 @@ void reset_frog() {
     timer = 0;
 }
 
-
+/*
+ * Computes the countdown duration for the current level.
+ * Starts at MAX_LEVEL_TIME and shrinks by TIME_DECREMENT_PER_LEVEL for
+ * each level already completed; clamped to 0 so it never goes negative.
+ */
 int get_level_time() {
     int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * (level-1));
     return level_time &gt; 0 ? level_time : 0;
@@ -431,34 +439,50 @@ void move_frog(Direction dx, Direction dy) {
 
 // ------------------------------ Advanced Probability Weights for Frogger Movement ------------------------------
 
+/*
+ * Finds the toroidal distance from column x to the nearest cell
+ * belonging to a still-free home bay.
+ *
+ * Input:
+ *   x - the x-coordinate to measure from (typically frog_x ± 1).
+ *
+ * Effect:
+ *   For each unoccupied bay, checks both of its cells, taking the
+ *   shorter of the direct distance and the wrap-around distance
+ *   (LANE_W - distance) to account for the toroidal lane width.
+ *
+ * Returns:
+ *   The minimum such distance over all free bays, or 99 if every
+ *   bay is already occupied (used as a sentinel "no target" value).
+ */
 int distance_from_nearest_free_home_bay(int x) {
     int i;
-    int min_dist = LANE_W; // Inizializziamo alla massima distanza possibile (20)
+    int min_dist = LANE_W; // Intialized at the maximum distance possible (20)
     
-    // Se tutte le tane sono occupate, non c'è nessuna distanza da calcolare
+    // If all home bays are occupied, there is no distance to calculate. this should be illegal.
     if (all_home_bays_occupied()) return 99;
 
     for (i = 0; i &lt; HOME_BAYS; i++) {
         if (!home_bay_occupied[i]) {
             int target1, target2, diff1, diff2, dist1, dist2, bay_min_dist;
             
-            // Le due celle valide per questa specifica tana
+            // The two valid cell for this specific home bay
             target1 = i * HOME_BAY_SPACING;
             target2 = target1 + 1;
             
-            // 1. Calcolo della distanza lineare (valore assoluto)
+            // Computes the linear distance (absolute value)
             diff1 = x &gt; target1 ? x - target1 : target1 - x;
             diff2 = x &gt; target2 ? x - target2 : target2 - x;
             
-            // 2. Applicazione dell'effetto "Pac-Man" (Wrap-around)
-            // La distanza reale è il minimo tra la distanza lineare e il giro al contrario (LANE_W - distanza)
+            // "Pac-Man" effect application (Wrap-around)
+            // The real distance is the minimum between the linear distance and the inverse trip (LANE_W - distance)
             dist1 = diff1 &lt; (LANE_W - diff1) ? diff1 : (LANE_W - diff1);
             dist2 = diff2 &lt; (LANE_W - diff2) ? diff2 : (LANE_W - diff2);
             
-            // 3. Troviamo la cella più vicina di QUESTA tana
+            // Finds the nearest cell to THIS home bay
             bay_min_dist = dist1 &lt; dist2 ? dist1 : dist2;
             
-            // 4. Aggiorniamo la distanza minima globale trovata finora
+            // Updates the minimum distance find until now
             if (bay_min_dist &lt; min_dist) {
                 min_dist = bay_min_dist;
             }
@@ -469,13 +493,35 @@ int distance_from_nearest_free_home_bay(int x) {
 }
 
 
-// Funzione helper aggiornata con la preveggenza sulle tartarughe
+/*
+ * Checks whether a given lane cell is safe to land on while floating.
+ * Logs and regular turtles (L, T) are always safe. Diving-turtle cells
+ * (D) are safe only when the diving-turtle cycle is neither submerged
+ * nor about to submerge, giving Frogger a one-phase lookahead.
+ */
 bool is_safe_float(Cell c) {
     return c == L || c == T || (c == D &amp;&amp; !diving_turtles_are_submerged &amp;&amp; !diving_turtles_are_submerging);
 }
 
-// Ritorna RIGHT/LEFT verso il floating object più vicino su frog_y+1,
-// SAME se già allineato o non applicabile (road, home row)
+
+/*
+ * Suggests a sideways direction toward the nearest safe floating
+ * support one row above Frogger, used to bias movement on river rows.
+ *
+ * Effect:
+ *   Returns SAME immediately if Frogger is outside the river rows
+ *   (frog_y &lt; 6 or &gt;= 11), or if the cell directly above is already
+ *   safe. Otherwise searches outward, one cell at a time up to
+ *   LANE_W / 2, on both sides simultaneously (the search radius is
+ *   capped there since the lane is toroidal). Returns RIGHT or LEFT
+ *   as soon as exactly one side is found safe first; if both sides
+ *   become safe at the same distance, breaks the tie by comparing
+ *   distance_from_nearest_free_home_bay() on each side. The 3 * LANE_W
+ *   offset avoids negative-index array access in UPPAAL.
+ *
+ * Returns:
+ *   SAME, RIGHT, or LEFT.
+ */
 Direction safe_above_direction() {
     int i;
     PosY row;
@@ -485,10 +531,10 @@ Direction safe_above_direction() {
     if (frog_y &lt; 6 || frog_y &gt;= 11) return SAME;
     row = frog_y + 1;
     
-    // Usiamo 3 * LANE_W per evitare bug con array a indice negativo in UPPAAL
+    // Uses 3 * LANE_W to avoid negative index on the UPPAAL array
     if (is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x - lane_shift_array[row]) % LANE_W])) return SAME;
     
-    // Basta cercare fino a LANE_W / 2 (distanza massima su mappa toroidale)
+    // It is sufficient to search untill LANE_W / 2 (maximum distance on the map)
     for (i = 1; i &lt;= LANE_W / 2; i++) {
         r_safe = is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x + i - lane_shift_array[row]) % LANE_W]);
         l_safe = is_safe_float(LANE_STRUCTURES[row][(3 * LANE_W + frog_x - i - lane_shift_array[row]) % LANE_W]);
@@ -496,7 +542,7 @@ Direction safe_above_direction() {
         if ( r_safe &amp;&amp; !l_safe) return RIGHT;
         if (!r_safe &amp;&amp;  l_safe) return LEFT;
         if ( r_safe &amp;&amp;  l_safe) {
-            // Pareggio: tie-break con home bay (usa la funzione che avevamo fatto!)
+            // Tie: tie-break with home bay
             return (distance_from_nearest_free_home_bay(frog_x+1) &lt; distance_from_nearest_free_home_bay(frog_x-1)) ? RIGHT : LEFT;
         }
     }
@@ -537,27 +583,40 @@ int[0,5] prob(Direction dx, Direction dy) {
     safe_dir     = safe_above_direction();
     toward_safe  = (safe_dir != SAME &amp;&amp; safe_dir == dx);
 
-    // Road: priorità home bay (nessun fiume da preoccuparsi)
+    // Road: piority home bay (no river to worry about)
     if (frog_y &lt;= 5) {
         if (toward_home) return 5;
         return 1;
     }
 
-    // Mediana + Fiume: priorità safe entry, home bay secondaria
+    // River: piority to safe entry, home bay comes second
     if (safe_dir == SAME) {
-        // Già allineati sopra un oggetto sicuro: home bay decide
+        // Already aligned over a safe object: home bay decides
         if (toward_home) return carried ? 3 : 5;
         return 1;
     }
 
-    // Le logiche di peso risultanti
-    if (toward_safe &amp;&amp; toward_home) return 5;           // Ottimo: verso entrambi
-    if (toward_safe)                return carried ? 3 : 4;  // Verso oggetto sicuro
-    if (toward_home)                return 2;           // Solo home bay (non ideale, ma evita blocchi)
+    // Results weights logic
+    if (toward_safe &amp;&amp; toward_home) return 5;               // Great: toward both
+    if (toward_safe)                return carried ? 3 : 4; // Toward safe object
+    if (toward_home)                return 2;               // Toward home bay only (not ideal, but avoids stops)
     
-    return 1;                                           // Via di fuga d'emergenza
+    return 1;                                               // Emergency exit
 }
 
+
+/*
+ * Detects whether every weighted direction is currently unavailable.
+ *
+ * Mutually exclusive with prob(): if any of the four prob() weights
+ * (SAME,UP / SAME,DOWN / RIGHT,SAME / LEFT,SAME) is nonzero, at least
+ * one weighted branch is selectable and this returns 0; only when all
+ * of them are 0 does no probabilistic move exist, and this returns 1
+ * to select the branchpoint's fallback branch instead.
+ *
+ * Returns:
+ *   1 if no probabilistic move is available, 0 otherwise.
+ */
 int[0,1] cant_move() {
     if ( (prob(SAME, UP) + prob(SAME, DOWN) + prob(RIGHT, SAME) + prob(LEFT, SAME)) == 0 ) return 1;
     return 0;
@@ -691,6 +750,16 @@ timer &lt; get_level_time()</label>
 		<name>VehicleLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// =========================== VEHICLE LANE DECLARATION =========================
+
+/*
+ * This Automata models the road lanes.
+ * In our abstraction, all the road lanes, from now on called VEHICLELANE, are modeled using the same Template. It takes in input the number
+ * of the lane and takes all the needed values from global variables (speed, where the vehicle are, ...). 
+ * The initial state is WAIT. According to the rules, a transition to CHECK_FROG fires everytime the local clock tick reaches the value speed, 
+ * incresing the variable shift to simulate the vehicles movement. The other transition to CHECK_FROG fires when a frog_moved event is captured. 
+ * When in CHECK_FROG it checks if there is a collision with Frogger and in that case throws a kill_frog event, otherwise no updates are done.
+*/
+
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -767,6 +836,15 @@ bool collision() {
 		<name>TruckLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// =========================== TRUCK LANE DECLARATION =========================
+
+/* 
+ * Same logic as VehicleLane (same movement, same collision check via inverse shift),
+ * but with stochastic advancement: instead of a deterministic time invariant on Wait, 
+ * it uses an exponentialrate 1:speed, so the waiting time between two advances is exponential
+ * rather than deterministic. It's the only automaton in the model with continuous stochastic timing, 
+ * reserved for trucks (presumably to differentiate their pattern from the other lanes).
+ */
+
 // Shared template for truck lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -843,6 +921,15 @@ bool collision() {
 		<name>FloatingLane</name>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// ========================== FLOATING LANE DECLARATION =========================
+
+/*
+ * This Automata models the "water lanes".
+ * The mechanism is very similar to the vehiclelane's one, with the only difference of the self-loop in WAIT which simulates the lane's movement. 
+ * In this case it doesn't need to check if it has killed Frogger after moving (the lane), beacuse a floating lane cannot kill Frogger simply moving 
+ * as in the case of the VehicleLane. In addition, there is a Transition to CHECK_FROG that fires if the diving_turtles_submerged is caught, because 
+ * if diving turtles are present in the lane, it has to check if Frogger has drown riding a diving turtle.
+ */
+
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
 
 // ------------------------------ Lane parameters ------------------------------
@@ -889,6 +976,39 @@ bool drowning() {
     return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
 }
 
+
+// ------------------------------ Verifier Utilities ------------------------------
+
+/*
+ * This function is not relevant for the correctness of the Model, i.e. it can be removed
+ * and the System would still model the game perfectly.
+ * "frog_on_diving_turtle" and "frog_on_log" are just two testing flags, as said above NOT
+ * NECESSARY for the correctness of the model, that we used to verify (without hardcoding
+ * the queries) property V), VI). We could avoid using "frog_on_log" with this brutally 
+ * hardcoded query:
+ * 
+ *     E&lt;&gt; ( timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; (
+ *             (frog_y == 8 &amp;&amp; LANE_STRUCTURES[8][(LANE_W + frog_x - L8.shift) % LANE_W]) == L || 
+ *             (frog_y == 9 &amp;&amp; LANE_STRUCTURES[9][(LANE_W + frog_x - L9.shift) % LANE_W]) == L || 
+ *             (frog_y == 11 &amp;&amp; LANE_STRUCTURES[11][(LANE_W + frog_x - L11.shift) % LANE_W] == L))
+ *         )
+ * 
+ * but in our opinion the flag would be a more elegant solution.
+ * "frog_on_diving_turtle" is instead necessary to verify property IV). The lack of the 
+ * 'next-step' operator in Uppaal forces to use a state or a variable to keep track of a sequential
+ * step-by-step flow. 
+ * Every floating lane, when Frogger is on it, calls this function to update this
+ * variable to state whether Frogger is on a diving turtle or not, in order to make possible to verify
+ * that frogger can die while riding a diving turtle that transitions to the submerged state.
+ * Keep in Ming that using a query as:
+ *     E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; F.Dead &amp;&amp; "Frogger coordinates are still the ones of a DT")
+ * both is an horrible hardcoded solution (it would have the same structure of the one above for logs) 
+ * and is also not correct, because it would be true also when Frogger jumps on already submerged DT, 
+ * which is not what the property is about. 
+ * We should be able to say "Frogger is now death, his coordinates are still the one of a DT 
+ * (the reset function is not immediate), DT are submerged and he was on a DT while it was still
+ * emerged", and this is impossible without a flag as stated above. 
+ */
 void manage_utilities() {
     Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - lane_shift_array[lane_y]) % LANE_W];
     frog_on_diving_turtle = (cell == D);
@@ -948,6 +1068,16 @@ void manage_utilities() {
 	<template>
 		<name>DivingTurtleCycle</name>
 		<declaration>// ======================= DIVING TURTLE CYCLE DECLARATION ======================
+
+/*
+ * A global automaton, unique in its single instance, governing the deterministic,
+ * shared cycle of all diving turtles: Emerged → Diving → Submerged → Emerging → Emerged. 
+ * Stable phases (Emerged, Submerged) last DIVING_TURTLE_STABLE_STATE_TIMER, transition phases (Diving, Emerging)
+ * last DIVING_TURTLE_TRANSITION_STATE_TIMER. Only entry into Submerged broadcasts diving_turtles_submerged! and 
+ * updates the global flag diving_turtles_are_submerged, which is the only piece of information 
+ * the relevant FloatingLanes need to observe.
+ */
+
 // Deterministic global phase shared by all diving turtles.
 //
 // The template alternates emerged -&gt; diving -&gt; submerged -&gt; emerging.

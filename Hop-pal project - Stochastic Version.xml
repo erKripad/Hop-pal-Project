@@ -247,12 +247,6 @@ bool all_home_bays_occupied() {
     return true;
 }
 
-// ------------------------------ Testing Utilities --------------------------
-
-void reset_utilities(){
-    frog_on_diving_turtle = false;
-    frog_on_log = false;
-}
 
 // ------------------------------ Score utility ------------------------------
 
@@ -263,6 +257,13 @@ void add_score(int points) {
     score = (score + points &gt; MAX_SCORE) ? MAX_SCORE : score + points;
 }
 
+
+// ------------------------------ Verifier Utilities --------------------------
+
+void reset_utilities(){
+    frog_on_diving_turtle = false;
+    frog_on_log = false;
+}
 
 // ------------------------------ Synchronisation channels ------------------------------
 
@@ -350,8 +351,9 @@ void reset_frog() {
 }
 
 /*
- * Obtain the maximum time frogger has to reach an home bay
- * based on the currente level being played.
+ * Computes the countdown duration for the current level.
+ * Starts at MAX_LEVEL_TIME and shrinks by TIME_DECREMENT_PER_LEVEL for
+ * each level already completed; clamped to 0 so it never goes negative.
  */
 int get_level_time() {
     int level_time = MAX_LEVEL_TIME - (TIME_DECREMENT_PER_LEVEL * (level-1));
@@ -544,12 +546,13 @@ timer &lt; get_level_time()</label>
 		<parameter>const PosY lane_y</parameter>
 		<declaration>// =========================== VEHICLE LANE DECLARATION =========================
 
-/* 
- * Parametric template (lane_y) for road lanes with single vehicles. It deterministically
- * alternates Wait (invariant tick &lt;= speed) and CheckFrog (committed): once speed elapses it advances 
- * the lane via move_lane() (shift modulo LANE_W); on receiving frog_moved?, if Frogger is on the row 
- * and colliding with a V cell, it broadcasts kill_frog!. 
- * The lane's logical structure stays fixed in the global array — only the shift represents motion.
+/*
+ * This Automata models the road lanes.
+ * In our abstraction, all the road lanes, from now on called VEHICLELANE, are modeled using the same Template. It takes in input the number
+ * of the lane and takes all the needed values from global variables (speed, where the vehicle are, ...). 
+ * The initial state is WAIT. According to the rules, a transition to CHECK_FROG fires everytime the local clock tick reaches the value speed, 
+ * incresing the variable shift to simulate the vehicles movement. The other transition to CHECK_FROG fires when a frog_moved event is captured. 
+ * When in CHECK_FROG it checks if there is a collision with Frogger and in that case throws a kill_frog event, otherwise no updates are done.
  */
 
 // Shared template for road lanes. The lane identity is fixed by parameter lane_y.
@@ -722,11 +725,11 @@ void reset_utilities(){
 		<declaration>// ========================== FLOATING LANE DECLARATION =========================
 
 /*
- * Template for river lanes (logs/turtles). Same Wait/CheckFrog structure as VehicleLane,
- * but here move_lane() also carries Frogger along (frog_x updated together with the shift)
- * if it's on the row, simulating being carried by the floating object. 
- * Instead of a collision check, drowning() checks whether the cell under Frogger is open water (empty cell)
- * or a diving-turtle group that's submerged (D with diving_turtles_are_submerged true): in both cases it broadcasts kill_frog!.
+ * This Automata models the "water lanes".
+ * The mechanism is very similar to the vehiclelane's one, with the only difference of the self-loop in WAIT which simulates the lane's movement. 
+ * In this case it doesn't need to check if it has killed Frogger after moving (the lane), beacuse a floating lane cannot kill Frogger simply moving 
+ * as in the case of the VehicleLane. In addition, there is a Transition to CHECK_FROG that fires if the diving_turtles_submerged is caught, because 
+ * if diving turtles are present in the lane, it has to check if Frogger has drown riding a diving turtle.
  */
 
 // Shared template for river lanes. The lane identity is fixed by parameter lane_y.
@@ -776,10 +779,41 @@ bool drowning() {
     return (frog_y == lane_y) &amp;&amp; (!cell || (cell == D &amp;&amp; diving_turtles_are_submerged));
 }
 
-/* 
- * The Documentation of this function can be found in the Symbolic Version, the logic and the
- * design choices are the same.
-*/
+
+
+
+// ------------------------------ Verifier Utilities ------------------------------
+
+/*
+ * This function is not relevant for the correctness of the Model, i.e. it can be removed
+ * and the System would still model the game perfectly.
+ * "frog_on_diving_turtle" and "frog_on_log" are just two testing flags, as said above NOT
+ * NECESSARY for the correctness of the model, that we used to verify (without hardcoding
+ * the queries) property V), VI). We could avoid using "frog_on_log" with this brutally 
+ * hardcoded query:
+ * 
+ *     E&lt;&gt; ( timer == 100 &amp;&amp; F.lives == FROG_MAX_LIVES &amp;&amp; (
+ *             (frog_y == 8 &amp;&amp; LANE_STRUCTURES[8][(LANE_W + frog_x - L8.shift) % LANE_W]) == L || 
+ *             (frog_y == 9 &amp;&amp; LANE_STRUCTURES[9][(LANE_W + frog_x - L9.shift) % LANE_W]) == L || 
+ *             (frog_y == 11 &amp;&amp; LANE_STRUCTURES[11][(LANE_W + frog_x - L11.shift) % LANE_W] == L))
+ *         )
+ * 
+ * but in our opinion the flag would be a more elegant solution.
+ * "frog_on_diving_turtle" is instead necessary to verify property IV). The lack of the 
+ * 'next-step' operator in Uppaal forces to use a state or a variable to keep track of a sequential
+ * step-by-step flow. 
+ * Every floating lane, when Frogger is on it, calls this function to update this
+ * variable to state whether Frogger is on a diving turtle or not, in order to make possible to verify
+ * that frogger can die while riding a diving turtle that transitions to the submerged state.
+ * Keep in Ming that using a query as:
+ *     E&lt;&gt; (diving_turtles_are_submerged &amp;&amp; F.Dead &amp;&amp; "Frogger coordinates are still the ones of a DT")
+ * both is an horrible hardcoded solution (it would have the same structure of the one above for logs) 
+ * and is also not correct, because it would be true also when Frogger jumps on already submerged DT, 
+ * which is not what the property is about. 
+ * We should be able to say "Frogger is now death, his coordinates are still the one of a DT 
+ * (the reset function is not immediate), DT are submerged and he was on a DT while it was still
+ * emerged", and this is impossible without a flag as stated above. 
+ */
 void manage_utilities() {
     Cell cell = LANE_STRUCTURES[row][(LANE_W + frog_x - shift) % LANE_W];
     frog_on_diving_turtle = (cell == D);
@@ -851,7 +885,7 @@ void manage_utilities() {
  */
 
 // Deterministic global phase shared by all diving turtles.
-//
+
 // The template alternates emerged -&gt; diving -&gt; submerged -&gt; emerging.
 // Only the submerged phase disables D support in floating-lane safety checks.
 
